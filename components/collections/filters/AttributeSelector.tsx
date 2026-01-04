@@ -5,7 +5,8 @@ import { Box, Flex, Switch, Text } from 'components/primitives'
 import { useRouter } from 'next/router'
 import { CSSProperties, FC, useMemo, useState } from 'react'
 import { addParam, hasParam, removeParam } from 'utils/router'
-import { FixedSizeList as List } from 'react-window'
+import { FixedSizeList } from 'react-window'
+const RWList = FixedSizeList as unknown as React.ComponentType<any>;
 
 type Props = {
   attribute: NonNullable<ReturnType<typeof useAttributes>['data']>[0]
@@ -135,7 +136,7 @@ export const AttributeSelector: FC<Props> = ({ attribute, scrollToTop }) => {
         />
       </Flex>
       <Flex css={{ paddingBottom: open ? 8 : 0 }}>
-        <List
+        <RWList
           height={
             open
               ? sortedAttributes && sortedAttributes?.length >= 7
@@ -152,7 +153,7 @@ export const AttributeSelector: FC<Props> = ({ attribute, scrollToTop }) => {
           }}
         >
           {AttributeRow}
-        </List>
+        </RWList>
       </Flex>
     </Box>
   )
