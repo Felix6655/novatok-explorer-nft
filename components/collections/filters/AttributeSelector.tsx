@@ -1,3 +1,5 @@
+import React from 'react'
+import { FixedSizeList } from 'react-window'
 import { faChevronDown } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { useAttributes } from '@reservoir0x/reservoir-kit-ui'
@@ -5,9 +7,6 @@ import { Box, Flex, Switch, Text } from 'components/primitives'
 import { useRouter } from 'next/router'
 import { CSSProperties, FC, useMemo, useState } from 'react'
 import { addParam, hasParam, removeParam } from 'utils/router'
-
-import React from 'react'
-import { FixedSizeList, ListChildComponentProps } from 'react-window'
 
 type Props = {
   attribute: NonNullable<ReturnType<typeof useAttributes>['data']>[0]
@@ -124,15 +123,14 @@ export const AttributeSelector: FC<Props> = ({ attribute, scrollToTop }) => {
       </Flex>
       <Flex css={{ paddingBottom: open ? 8 : 0 }}>
         {React.createElement(
-          FixedSizeList as any,
+          FixedSizeList as unknown as React.ComponentType<any>,
           {
-            height:
-              open
-                ? sortedAttributes && sortedAttributes?.length >= 7
-                  ? 300
-                  : (sortedAttributes?.length ?? 1) * 36
-                : 0,
-            itemCount: sortedAttributes?.length ?? 1,
+            height: open
+              ? sortedAttributes && sortedAttributes.length >= 7
+                ? 300
+                : (sortedAttributes?.length ?? 1) * 36
+              : 0,
+            itemCount: sortedAttributes?.length ?? 0,
             itemSize: 36,
             width: '100%',
             style: {
