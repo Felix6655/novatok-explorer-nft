@@ -1,5 +1,6 @@
 import React, { FC, useMemo, useState } from 'react'
 import { FixedSizeList } from 'react-window'
+import type { ListChildComponentProps } from 'react-window'
 import { faChevronDown } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { useAttributes } from '@reservoir0x/reservoir-kit-ui'
@@ -20,17 +21,22 @@ export const AttributeSelector: FC<Props> = ({ attribute, scrollToTop }) => {
   const [open, setOpen] = useState(false)
 
   const sortedAttributes = useMemo(() => {
-    return attribute?.values?.sort((a, b) => {
-      if (!a.count || !b.count) {
-        return 0
-      } else {
-        return b.count - a.count
-      }
-    })
+    return attribute?.values ? [...attribute.values].sort((a, b) => {
+      if (!a.value || !b.value) return 0
+      return a.value.localeCompare(b.value)
+    }) : []
   }, [attribute])
 
   const AttributeRow = ({ index, style }: any) => {
     const currentAttribute = sortedAttributes?.[index]
+    const attributeKey = `attributes[${attribute.key}]`
+    const isSelected = hasParam(router, attributeKey, currentAttribute?.value)
+
+    const handleToggle = () => {
+      if (isSelected) removeParam(router, attributeKey, currentAttribute?.value || '')
+      else addParam(router, attributeKey, currentAttribute?.value || '')
+      scrollToTop?.()
+    }
 
     return (
       <Flex
@@ -38,58 +44,14 @@ export const AttributeSelector: FC<Props> = ({ attribute, scrollToTop }) => {
         style={style}
         css={{ gap: '$3' }}
         align="center"
-        onClick={() => {
-          if (
-            hasParam(
-              router,
-              `attributes[${attribute.key}]`,
-              currentAttribute?.value
-            )
-          ) {
-            removeParam(
-              router,
-              `attributes[${attribute.key}]`,
-              currentAttribute?.value
-            )
-          } else {
-            addParam(
-              router,
-              `attributes[${attribute.key}]`,
-              currentAttribute?.value || ''
-            )
-          }
-        }}
+        onClick={handleToggle}
       >
         <Text style="body2" css={{ flex: 1 }}>
           {currentAttribute?.value}
         </Text>
         <Switch
-          checked={hasParam(
-            router,
-            `attributes[${attribute.key}]`,
-            currentAttribute?.value
-          )}
-          onCheckedChange={() => {
-            if (
-              hasParam(
-                router,
-                `attributes[${attribute.key}]`,
-                currentAttribute?.value
-              )
-            ) {
-              removeParam(
-                router,
-                `attributes[${attribute.key}]`,
-                currentAttribute?.value
-              )
-            } else {
-              addParam(
-                router,
-                `attributes[${attribute.key}]`,
-                currentAttribute?.value || ''
-              )
-            }
-          }}
+          checked={isSelected}
+          onCheckedChange={handleToggle}
         />
       </Flex>
     )
@@ -129,20 +91,48 @@ export const AttributeSelector: FC<Props> = ({ attribute, scrollToTop }) => {
         {React.createElement(
           FixedSizeList as unknown as React.ComponentType<any>,
           {
-            height: open
-              ? sortedAttributes && sortedAttributes.length >= 7
-                ? 300
-                : (sortedAttributes?.length ?? 1) * 36
-              : 0,
-            itemCount: open ? (sortedAttributes?.length ?? 0) : 0,
-            itemSize: 36,
+            height: open ? (sortedAttributes?.length >= 7 ? 264 : 132) : 0,
+            itemCount: open ? sortedAttributes?.length ?? 0 : 0,
+            itemSize: 44,
             width: '100%',
-            style: {
-              overflow: 'auto',
-              transition: 'max-height .3s ease-in-out',
-            },
+            itemData: sortedAttributes,
           },
-          AttributeRow as any
+          ({ index, style, data }: any) => {
+            const value = data?.[index]
+            if (!value) return null
+
+            return (
+              <div style={style}>
+                {/* keep existing checkbox / label UI */}
+                <Flex
+                  key={index}
+                  css={{ gap: '$3' }}
+                  align="center"
+                  onClick={() => {
+                    const attributeKey = `attributes[${attribute.key}]`
+                    const isSelected = hasParam(router, attributeKey, value?.value)
+                    if (isSelected) removeParam(router, attributeKey, value?.value || '')
+                    else addParam(router, attributeKey, value?.value || '')
+                    scrollToTop?.()
+                  }}
+                >
+                  <Text style="body2" css={{ flex: 1 }}>
+                    {value?.value}
+                  </Text>
+                  <Switch
+                    checked={hasParam(router, `attributes[${attribute.key}]`, value?.value)}
+                    onCheckedChange={() => {
+                      const attributeKey = `attributes[${attribute.key}]`
+                      const isSelected = hasParam(router, attributeKey, value?.value)
+                      if (isSelected) removeParam(router, attributeKey, value?.value || '')
+                      else addParam(router, attributeKey, value?.value || '')
+                      scrollToTop?.()
+                    }}
+                  />
+                </Flex>
+              </div>
+            )
+          }
         )}
       </Flex>
     </Box>
