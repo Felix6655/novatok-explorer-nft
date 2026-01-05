@@ -1,5 +1,5 @@
 import React from 'react'
-import type { ListChildComponentProps } from 'react-window'
+import type { CellComponentProps } from 'react-window'
 
 
 import { faChevronDown } from '@fortawesome/free-solid-svg-icons'
@@ -28,7 +28,7 @@ export const AttributeSelector: FC<Props> = ({ attribute, scrollToTop }) => {
     }) : []
   }, [attribute])
 
-  const AttributeRow = ({ index, style }: any) => {
+  const AttributeRow = ({ index, style }: CellComponentProps) => {
     const currentAttribute = sortedAttributes?.[index]
     const attributeKey = `attributes[${attribute.key}]`
     const isSelected = hasParam(router, attributeKey, currentAttribute?.value)
