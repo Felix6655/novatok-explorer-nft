@@ -29,7 +29,7 @@ export const AttributeSelector: FC<Props> = ({ attribute, scrollToTop }) => {
     })
   }, [attribute])
 
-  const AttributeRow = ({ index, style }: ListChildComponentProps) => {
+  const AttributeRow = ({ index, style }: any) => {
     const currentAttribute = sortedAttributes?.[index]
 
     return (
