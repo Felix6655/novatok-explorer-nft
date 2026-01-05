@@ -1,6 +1,7 @@
 import React, { FC, useMemo, useState } from 'react'
 import { FixedSizeList } from 'react-window'
 import type { ListChildComponentProps } from 'react-window'
+
 import { faChevronDown } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { useAttributes } from '@reservoir0x/reservoir-kit-ui'
