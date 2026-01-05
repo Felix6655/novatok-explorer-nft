@@ -1,5 +1,4 @@
-import React, { FC, useMemo, useState } from 'react'
-import { FixedSizeList } from 'react-window'
+import React from 'react'
 import type { ListChildComponentProps } from 'react-window'
 
 import { faChevronDown } from '@fortawesome/free-solid-svg-icons'
