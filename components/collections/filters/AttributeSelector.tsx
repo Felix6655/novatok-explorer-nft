@@ -1,5 +1,8 @@
 import React from 'react'
 import type { CSSProperties } from 'react'
+import type { FC } from 'react'
+import { FixedSizeList } from 'react-window'
+import { useState, useMemo } from 'react'
 
 type RowProps<T = any> = {
   index: number
@@ -34,7 +37,7 @@ export const AttributeSelector: FC<Props> = ({ attribute, scrollToTop }) => {
     }) : []
   }, [attribute])
 
-  const AttributeRow = ({ index, style, data }: RowProps) => {
+  const AttributeRow = ({ index, style, data }: any) => {
     const currentAttribute = sortedAttributes?.[index]
     const attributeKey = `attributes[${attribute.key}]`
     const isSelected = hasParam(router, attributeKey, currentAttribute?.value)
