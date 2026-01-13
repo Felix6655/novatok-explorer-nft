@@ -58,8 +58,44 @@ export default function MyNFTsPage() {
   }
 
   useEffect(() => {
+    const loadNFTs = async () => {
+      if (!address || !NFT_CONTRACT_ADDRESS || isWrongNetwork) return
+
+      setLoading(true)
+      setError('')
+
+      try {
+        // Get owned token IDs via event indexing
+        const tokenIds = await getOwnedTokens(address)
+        
+        // Fetch metadata for each token
+        const nftDataPromises = tokenIds.map(async (tokenId) => {
+          try {
+            return await getNFTData(tokenId)
+          } catch (err) {
+            console.error(`Failed to fetch NFT #${tokenId}:`, err)
+            return {
+              tokenId,
+              name: `NFT #${tokenId}`,
+              description: 'Failed to load metadata',
+              image: '',
+              owner: address,
+            }
+          }
+        })
+
+        const nftData = await Promise.all(nftDataPromises)
+        setNfts(nftData)
+      } catch (err) {
+        console.error('Error fetching NFTs:', err)
+        setError(err.message || 'Failed to fetch your NFTs')
+      } finally {
+        setLoading(false)
+      }
+    }
+
     if (isConnected && address && !isWrongNetwork) {
-      fetchNFTs()
+      loadNFTs()
     } else {
       setNfts([])
     }
