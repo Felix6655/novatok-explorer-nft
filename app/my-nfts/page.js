@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAccount } from 'wagmi'
 import { Header } from '@/components/Header'
 import { NetworkBanner } from '@/components/NetworkBanner'
@@ -21,7 +21,7 @@ export default function MyNFTsPage() {
 
   const isWrongNetwork = chain?.id !== SEPOLIA_CHAIN_ID
 
-  const fetchNFTs = async () => {
+  const fetchNFTs = useCallback(async () => {
     if (!address || !NFT_CONTRACT_ADDRESS || isWrongNetwork) return
 
     setLoading(true)
@@ -55,51 +55,15 @@ export default function MyNFTsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [address, isWrongNetwork])
 
   useEffect(() => {
-    const loadNFTs = async () => {
-      if (!address || !NFT_CONTRACT_ADDRESS || isWrongNetwork) return
-
-      setLoading(true)
-      setError('')
-
-      try {
-        // Get owned token IDs via event indexing
-        const tokenIds = await getOwnedTokens(address)
-        
-        // Fetch metadata for each token
-        const nftDataPromises = tokenIds.map(async (tokenId) => {
-          try {
-            return await getNFTData(tokenId)
-          } catch (err) {
-            console.error(`Failed to fetch NFT #${tokenId}:`, err)
-            return {
-              tokenId,
-              name: `NFT #${tokenId}`,
-              description: 'Failed to load metadata',
-              image: '',
-              owner: address,
-            }
-          }
-        })
-
-        const nftData = await Promise.all(nftDataPromises)
-        setNfts(nftData)
-      } catch (err) {
-        console.error('Error fetching NFTs:', err)
-        setError(err.message || 'Failed to fetch your NFTs')
-      } finally {
-        setLoading(false)
-      }
-    }
-
     if (isConnected && address && !isWrongNetwork) {
-      loadNFTs()
+      fetchNFTs()
     } else {
       setNfts([])
     }
-  }, [isConnected, address, isWrongNetwork])
+  }, [isConnected, address, isWrongNetwork, fetchNFTs])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
