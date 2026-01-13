@@ -127,7 +127,7 @@ export default function MyNFTsPage() {
         ) : nfts.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-6xl mb-4">🖼️</div>
-            <p className="text-white/70 text-lg mb-4">You don't own any NFTs yet</p>
+            <p className="text-white/70 text-lg mb-4">You do not own any NFTs yet</p>
             <Link href="/mint">
               <Button className="bg-gradient-to-r from-purple-500 to-pink-500">
                 <Plus className="h-4 w-4 mr-2" />
