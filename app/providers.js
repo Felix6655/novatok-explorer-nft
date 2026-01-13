@@ -2,7 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WagmiProvider, createConfig, http } from 'wagmi'
-import { mainnet, sepolia, polygon } from 'wagmi/chains'
+import { sepolia } from 'wagmi/chains'
 import { walletConnect, injected, coinbaseWallet } from 'wagmi/connectors'
 import { useState } from 'react'
 
@@ -15,9 +15,9 @@ if (!projectId) {
   )
 }
 
-// Create wagmi config
+// Create wagmi config - Sepolia only
 const config = createConfig({
-  chains: [mainnet, sepolia, polygon],
+  chains: [sepolia],
   connectors: [
     injected(),
     ...(projectId
@@ -26,7 +26,7 @@ const config = createConfig({
             projectId,
             metadata: {
               name: 'NovaTok NFT Marketplace',
-              description: 'NFT Marketplace powered by NovaTok',
+              description: 'NFT Marketplace powered by NovaTok on Sepolia',
               url: typeof window !== 'undefined' ? window.location.origin : '',
               icons: [],
             },
@@ -38,9 +38,7 @@ const config = createConfig({
       : []),
   ],
   transports: {
-    [mainnet.id]: http(),
-    [sepolia.id]: http(),
-    [polygon.id]: http(),
+    [sepolia.id]: http(process.env.NEXT_PUBLIC_RPC_URL || 'https://rpc.sepolia.org'),
   },
   ssr: true,
 })
