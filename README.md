@@ -1,105 +1,162 @@
 # NovaTok NFT Marketplace
 
-A Next.js NFT Marketplace with wallet connection powered by wagmi + WalletConnect.
+A minimal NFT marketplace MVP on Ethereum Sepolia testnet.
 
-## Phase 1: Wallet Connection
+## Features
 
-This phase implements:
-- Wallet connection using wagmi v2
-- WalletConnect integration
-- Support for MetaMask, Coinbase Wallet, and WalletConnect-compatible wallets
-- Multi-chain support (Ethereum Mainnet, Sepolia, Polygon)
-
-## Setup
-
-### 1. Get a WalletConnect Project ID
-
-1. Go to [WalletConnect Cloud](https://cloud.walletconnect.com/)
-2. Sign up or log in
-3. Create a new project
-4. Copy the **Project ID**
-
-### 2. Local Development
-
-```bash
-# Clone the repository
-git clone <your-repo-url>
-cd novatok-explorer-nft
-
-# Copy environment variables
-cp .env.example .env
-
-# Edit .env and add your WalletConnect Project ID
-# NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_actual_project_id
-
-# Install dependencies
-yarn install
-
-# Run development server
-yarn dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) to see the app.
-
-### 3. Vercel Deployment
-
-1. Push your code to GitHub
-2. Import the project in [Vercel](https://vercel.com)
-3. Add the environment variable in Vercel:
-   - Go to **Project Settings** → **Environment Variables**
-   - Add: `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` = `your_project_id`
-4. Redeploy the project
-
-## Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | Yes | WalletConnect Cloud Project ID |
-| `MONGO_URL` | For DB features | MongoDB connection string |
-| `DB_NAME` | For DB features | MongoDB database name |
+- **Mint NFTs** - Create NFTs with custom name, description, and image URL
+- **View Collection** - Browse NFTs owned by your wallet
+- **NFT Details** - View full metadata for any token
+- **Wallet Connection** - MetaMask + WalletConnect support
+- **Network Detection** - Automatic Sepolia network switching
 
 ## Tech Stack
 
 - **Framework**: Next.js 14 (App Router)
 - **Styling**: Tailwind CSS + shadcn/ui
-- **Wallet**: wagmi v2 + viem + WalletConnect
-- **State**: TanStack React Query
+- **Wallet**: wagmi v2 + viem
+- **Smart Contract**: OpenZeppelin ERC721URIStorage (Solidity 0.8.20)
+- **Network**: Ethereum Sepolia Testnet
 
-## Supported Wallets
+## Setup
 
-- MetaMask (browser extension)
-- Coinbase Wallet
-- WalletConnect (mobile wallets)
-- Any injected wallet
+### 1. Environment Variables
 
-## Supported Networks
+```bash
+cp .env.example .env
+```
 
-- Ethereum Mainnet
-- Sepolia Testnet
-- Polygon
+Edit `.env`:
+```env
+# Required for WalletConnect (get from https://cloud.walletconnect.com/)
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id
+
+# Set after deploying contract
+NEXT_PUBLIC_NFT_CONTRACT_ADDRESS=your_contract_address
+
+# Optional: Custom RPC (default: public Sepolia RPC)
+NEXT_PUBLIC_RPC_URL=https://rpc.sepolia.org
+```
+
+### 2. Deploy Smart Contract
+
+```bash
+cd contracts
+npm install
+
+# Create contracts/.env with your deployer key
+echo "DEPLOYER_PRIVATE_KEY=your_private_key" > .env
+echo "SEPOLIA_RPC_URL=https://rpc.sepolia.org" >> .env
+
+# Deploy
+npm run deploy:sepolia
+```
+
+The deploy script outputs the contract address. Add it to your root `.env`:
+```env
+NEXT_PUBLIC_NFT_CONTRACT_ADDRESS=0x...
+```
+
+### 3. Run Locally
+
+```bash
+# From root directory
+yarn install
+yarn dev
+```
+
+Open [http://localhost:3000](http://localhost:3000)
+
+### 4. Deploy to Vercel
+
+1. Push to GitHub
+2. Import in [Vercel](https://vercel.com)
+3. Add environment variables:
+   - `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`
+   - `NEXT_PUBLIC_NFT_CONTRACT_ADDRESS`
+   - `NEXT_PUBLIC_RPC_URL` (optional)
+4. Deploy
+
+## Getting Sepolia ETH
+
+You need Sepolia ETH to deploy contracts and mint NFTs:
+- https://sepoliafaucet.com/
+- https://www.alchemy.com/faucets/ethereum-sepolia
+- https://faucets.chain.link/sepolia
+
+## Smart Contract
+
+**NovaTokNFT** (`contracts/contracts/NovaTokNFT.sol`)
+
+- Standard: ERC721URIStorage
+- Name: "NovaTok NFT"
+- Symbol: "NOVA"
+- Public mint function (anyone can mint)
+- Metadata stored as data: URIs on-chain
+
+### Contract Functions
+
+| Function | Description |
+|----------|-------------|
+| `mint(tokenURI)` | Mint NFT to caller |
+| `tokenURI(tokenId)` | Get metadata URI |
+| `ownerOf(tokenId)` | Get token owner |
+| `balanceOf(owner)` | Get balance |
+| `totalMinted()` | Total tokens minted |
 
 ## Project Structure
 
 ```
-app/
+/
 ├── app/
-│   ├── layout.js      # Root layout with providers
-│   ├── page.js        # Home page with wallet UI
-│   ├── providers.js   # Wagmi + React Query setup
-│   └── globals.css    # Global styles
+│   ├── page.js              # Homepage
+│   ├── mint/page.js         # Mint NFT form
+│   ├── my-nfts/page.js      # User's NFT collection
+│   ├── nft/[tokenId]/page.js # NFT detail page
+│   ├── providers.js         # Wagmi + React Query setup
+│   └── layout.js            # Root layout
 ├── components/
-│   ├── ui/            # shadcn/ui components
-│   └── ConnectWalletButton.js
-├── .env.example       # Environment template
-└── README.md
+│   ├── Header.js            # Navigation header
+│   ├── ConnectWalletButton.js
+│   ├── NetworkBanner.js     # Wrong network warning
+│   ├── NftCard.js           # NFT display card
+│   ├── LoadingState.js
+│   └── ErrorBanner.js
+├── lib/
+│   ├── nftClient.js         # Contract read/write helpers
+│   └── contractConfig.js    # ABI + addresses
+├── contracts/               # Hardhat project
+│   ├── contracts/NovaTokNFT.sol
+│   ├── scripts/deploy.js
+│   └── hardhat.config.js
+└── .env.example
 ```
 
-## Next Phases (Planned)
+## How It Works
 
-- Phase 2: NFT Display & Gallery
-- Phase 3: Marketplace Features
-- Phase 4: Minting Capabilities
+### Metadata Storage
 
----
+NFT metadata is stored as base64-encoded JSON data URIs directly on-chain:
+```
+data:application/json;base64,eyJuYW1lIjoiTXkgTkZUIiwiZGVzY3...
+```
 
-Built with ❤️ using Next.js and wagmi
+This avoids IPFS complexity while keeping metadata fully on-chain.
+
+### Finding Owned NFTs
+
+Instead of using gas-heavy ERC721Enumerable, the app indexes Transfer events to determine token ownership. This is efficient and works with any ERC721.
+
+## Quality Checklist
+
+- ✅ Sepolia-only (chainId 11155111)
+- ✅ Network switching banner
+- ✅ MetaMask + WalletConnect working
+- ✅ Proper loading/error/success states
+- ✅ Transaction links to Etherscan
+- ✅ No fake data or mocks
+- ✅ Vercel-compatible build
+
+## License
+
+MIT
