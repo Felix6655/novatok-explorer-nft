@@ -12,7 +12,6 @@ import {
   TRAITS, 
   DEFAULT_TRAITS, 
   NFTRenderer, 
-  generateMetadata, 
   generateNFT,
   generateSeed 
 } from '@/lib/nftGenerator'
@@ -42,6 +41,35 @@ const GEN_STATE = {
   GENERATED: 'generated',
   MINTING: 'minting',
   SUCCESS: 'success',
+}
+
+/**
+ * Build standards-compliant ERC721 JSON metadata with base64 image
+ * and encode as data:application/json;base64 tokenURI
+ */
+function buildTokenURI(generatedNFT, tokenIdPlaceholder = 'TBD') {
+  // Get the base URL for external_url
+  const baseUrl = typeof window !== 'undefined' 
+    ? window.location.origin 
+    : process.env.NEXT_PUBLIC_BASE_URL || ''
+
+  // Build metadata object per ERC721 metadata standard
+  const metadata = {
+    name: generatedNFT.metadata.name,
+    description: generatedNFT.metadata.description,
+    image: generatedNFT.imageDataUrl, // data:image/png;base64,...
+    external_url: `${baseUrl}/nft/${tokenIdPlaceholder}`,
+    attributes: generatedNFT.metadata.attributes,
+  }
+
+  // Convert to JSON string
+  const jsonString = JSON.stringify(metadata)
+  
+  // Encode as base64 data URI
+  // Using btoa for browser, which handles ASCII. For Unicode, we'd need TextEncoder
+  const base64 = btoa(unescape(encodeURIComponent(jsonString)))
+  
+  return `data:application/json;base64,${base64}`
 }
 
 export default function GeneratePage() {
@@ -157,7 +185,7 @@ export default function GeneratePage() {
     link.click()
   }
 
-  // Handle mint
+  // Handle mint - builds JSON metadata tokenURI
   const handleMint = async () => {
     if (!canMint || !generatedNFT) return
     
@@ -165,20 +193,16 @@ export default function GeneratePage() {
     setGenState(GEN_STATE.MINTING)
     
     try {
-      // Create metadata with image as data URL
-      const metadata = {
-        ...generatedNFT.metadata,
-        image: generatedNFT.imageDataUrl,
-      }
-      
-      // Encode metadata as data URI
-      const metadataJson = JSON.stringify(metadata)
-      const tokenURI = `data:application/json;base64,${btoa(metadataJson)}`
+      // Build standards-compliant tokenURI with embedded JSON metadata
+      // The tokenId in external_url is a placeholder - it will be set after minting
+      const tokenURI = buildTokenURI(generatedNFT, generatedNFT.seed)
       
       if (IS_DEV) {
-        console.log('[Mint] Starting mint with tokenURI length:', tokenURI.length)
+        console.log('[Mint] TokenURI length:', tokenURI.length)
+        console.log('[Mint] TokenURI preview:', tokenURI.substring(0, 100) + '...')
       }
       
+      // Call mint function with the tokenURI
       writeContract({
         address: NFT_CONTRACT_ADDRESS,
         abi: NOVATOK_NFT_ABI,
@@ -197,7 +221,7 @@ export default function GeneratePage() {
     switchChain?.({ chainId: SEPOLIA_CHAIN_ID })
   }
 
-  // Extract minted token ID
+  // Extract minted token ID from receipt logs
   const mintedTokenId = extractTokenIdFromReceipt(receipt, NFT_CONTRACT_ADDRESS)
 
   // Combined error display
@@ -314,7 +338,7 @@ export default function GeneratePage() {
                     <CardContent className="py-6 text-center">
                       <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-3" />
                       <h3 className="text-xl font-semibold text-green-300 mb-2">NFT Minted!</h3>
-                      {mintedTokenId && (
+                      {mintedTokenId !== null && (
                         <p className="text-green-200 mb-4">Token ID: #{mintedTokenId}</p>
                       )}
                       <div className="flex flex-wrap justify-center gap-3">
@@ -327,7 +351,7 @@ export default function GeneratePage() {
                           <ExternalLink className="h-4 w-4" />
                           View Transaction
                         </a>
-                        {mintedTokenId && (
+                        {mintedTokenId !== null && (
                           <Link
                             href={`/nft/${mintedTokenId}`}
                             className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-lg transition-colors"
@@ -491,13 +515,17 @@ export default function GeneratePage() {
               {(genState === GEN_STATE.GENERATED || genState === GEN_STATE.SUCCESS) && generatedNFT && (
                 <Card className="bg-white/5 border-white/10">
                   <CardHeader>
-                    <CardTitle className="text-white text-lg">Metadata</CardTitle>
+                    <CardTitle className="text-white text-lg">On-Chain Metadata</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3 text-sm">
                       <div>
                         <span className="text-white/60">Name:</span>
                         <span className="text-white ml-2">{generatedNFT.metadata.name}</span>
+                      </div>
+                      <div>
+                        <span className="text-white/60">Format:</span>
+                        <span className="text-purple-300 ml-2">data:application/json;base64</span>
                       </div>
                       <div>
                         <span className="text-white/60">Attributes:</span>

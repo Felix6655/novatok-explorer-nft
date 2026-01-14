@@ -28,7 +28,8 @@ import {
   RefreshCw,
   Wallet,
   Image as ImageIcon,
-  Link as LinkIcon
+  Link as LinkIcon,
+  FileJson
 } from 'lucide-react'
 import Link from 'next/link'
 import { isAddress } from 'viem'
@@ -54,6 +55,135 @@ function NFTDetailSkeleton() {
   )
 }
 
+/**
+ * Decode and parse tokenURI to extract metadata
+ * Supports:
+ * - data:application/json;base64,... (base64 encoded JSON)
+ * - data:application/json,... (URL-encoded JSON)
+ * - data:image/... (direct image data URI)
+ * - http(s):// URLs pointing to JSON or images
+ */
+async function parseTokenURI(uri) {
+  if (!uri || typeof uri !== 'string') {
+    return { metadata: null, imageUrl: '', uriType: 'unknown' }
+  }
+
+  try {
+    // Case 1: Base64 encoded JSON data URI
+    if (uri.startsWith('data:application/json;base64,')) {
+      const base64Data = uri.replace('data:application/json;base64,', '')
+      // Decode base64 and handle Unicode
+      const jsonString = decodeURIComponent(escape(atob(base64Data)))
+      const metadata = JSON.parse(jsonString)
+      return {
+        metadata,
+        imageUrl: metadata.image || '',
+        uriType: 'json-base64'
+      }
+    }
+
+    // Case 2: URL-encoded JSON data URI
+    if (uri.startsWith('data:application/json,')) {
+      const encodedJson = uri.replace('data:application/json,', '')
+      const jsonString = decodeURIComponent(encodedJson)
+      const metadata = JSON.parse(jsonString)
+      return {
+        metadata,
+        imageUrl: metadata.image || '',
+        uriType: 'json-urlencoded'
+      }
+    }
+
+    // Case 3: Direct image data URI
+    if (uri.startsWith('data:image/')) {
+      return {
+        metadata: null,
+        imageUrl: uri,
+        uriType: 'image-data'
+      }
+    }
+
+    // Case 4: HTTP(S) URL
+    if (uri.startsWith('http://') || uri.startsWith('https://')) {
+      // Check if it's a direct image URL
+      if (isImageUri(uri)) {
+        return {
+          metadata: null,
+          imageUrl: uri,
+          uriType: 'image-url'
+        }
+      }
+
+      // Try to fetch as JSON
+      try {
+        const response = await fetch(uri)
+        const contentType = response.headers.get('content-type') || ''
+        
+        if (contentType.includes('application/json') || uri.endsWith('.json')) {
+          const metadata = await response.json()
+          return {
+            metadata,
+            imageUrl: metadata.image || '',
+            uriType: 'json-url'
+          }
+        } else if (contentType.includes('image/')) {
+          return {
+            metadata: null,
+            imageUrl: uri,
+            uriType: 'image-url'
+          }
+        } else {
+          // Try parsing as JSON anyway
+          const text = await response.text()
+          try {
+            const metadata = JSON.parse(text)
+            return {
+              metadata,
+              imageUrl: metadata.image || '',
+              uriType: 'json-url'
+            }
+          } catch {
+            // Not JSON, treat as image
+            return {
+              metadata: null,
+              imageUrl: uri,
+              uriType: 'unknown-url'
+            }
+          }
+        }
+      } catch (fetchErr) {
+        if (IS_DEV) console.error('[parseTokenURI] Fetch error:', fetchErr)
+        // Fetch failed, maybe it's an image URL that doesn't allow CORS
+        return {
+          metadata: null,
+          imageUrl: uri,
+          uriType: 'image-url'
+        }
+      }
+    }
+
+    // Case 5: IPFS URI (ipfs://...)
+    if (uri.startsWith('ipfs://')) {
+      const httpUrl = uri.replace('ipfs://', 'https://ipfs.io/ipfs/')
+      return parseTokenURI(httpUrl)
+    }
+
+    // Fallback: treat as image URL
+    return {
+      metadata: null,
+      imageUrl: uri,
+      uriType: 'unknown'
+    }
+  } catch (err) {
+    if (IS_DEV) console.error('[parseTokenURI] Error:', err)
+    return {
+      metadata: null,
+      imageUrl: uri,
+      uriType: 'error'
+    }
+  }
+}
+
 export default function NFTDetailPage() {
   const params = useParams()
   const tokenId = params.tokenId
@@ -67,6 +197,7 @@ export default function NFTDetailPage() {
   const [owner, setOwner] = useState('')
   const [metadata, setMetadata] = useState(null)
   const [imageUrl, setImageUrl] = useState('')
+  const [uriType, setUriType] = useState('')
   const [copiedField, setCopiedField] = useState('')
 
   // Derived state
@@ -101,58 +232,15 @@ export default function NFTDetailPage() {
       setTokenURI(uri)
       setOwner(ownerAddr)
 
-      // Determine how to handle the URI
-      if (isImageUri(uri)) {
-        // URI is directly an image - use it
-        setImageUrl(uri)
-        setMetadata(null)
-      } else if (uri.startsWith('data:application/json')) {
-        // Base64 or URL-encoded JSON data URI
-        try {
-          let jsonStr = ''
-          if (uri.startsWith('data:application/json;base64,')) {
-            jsonStr = atob(uri.replace('data:application/json;base64,', ''))
-          } else if (uri.startsWith('data:application/json,')) {
-            jsonStr = decodeURIComponent(uri.replace('data:application/json,', ''))
-          }
-          const meta = JSON.parse(jsonStr)
-          setMetadata(meta)
-          setImageUrl(meta.image || '')
-        } catch {
-          // Failed to parse, just use URI as is
-          setImageUrl(uri)
-        }
-      } else if (uri.startsWith('http://') || uri.startsWith('https://')) {
-        // HTTP URL - could be JSON metadata or direct image
-        try {
-          const response = await fetch(uri)
-          const contentType = response.headers.get('content-type') || ''
-          
-          if (contentType.includes('application/json') || uri.endsWith('.json')) {
-            const meta = await response.json()
-            setMetadata(meta)
-            setImageUrl(meta.image || '')
-          } else if (contentType.includes('image/')) {
-            setImageUrl(uri)
-          } else {
-            // Try to parse as JSON anyway
-            const text = await response.text()
-            try {
-              const meta = JSON.parse(text)
-              setMetadata(meta)
-              setImageUrl(meta.image || '')
-            } catch {
-              // Just use the URL as image
-              setImageUrl(uri)
-            }
-          }
-        } catch {
-          // If fetch fails, maybe it's just an image URL
-          setImageUrl(uri)
-        }
-      } else {
-        // Unknown format - try using as image
-        setImageUrl(uri)
+      // Parse the tokenURI to extract metadata and image
+      const parsed = await parseTokenURI(uri)
+      setMetadata(parsed.metadata)
+      setImageUrl(parsed.imageUrl)
+      setUriType(parsed.uriType)
+
+      if (IS_DEV) {
+        console.log('[NFTDetail] URI type:', parsed.uriType)
+        console.log('[NFTDetail] Metadata:', parsed.metadata)
       }
 
     } catch (err) {
@@ -177,6 +265,19 @@ export default function NFTDetailPage() {
   const displayName = metadata?.name || `NFT #${tokenId}`
   const description = metadata?.description || ''
   const attributes = metadata?.attributes || []
+  const externalUrl = metadata?.external_url || ''
+
+  // Get URI type label for display
+  const getUriTypeLabel = () => {
+    switch (uriType) {
+      case 'json-base64': return 'On-chain JSON (base64)'
+      case 'json-urlencoded': return 'On-chain JSON'
+      case 'json-url': return 'External JSON'
+      case 'image-data': return 'On-chain Image'
+      case 'image-url': return 'External Image'
+      default: return 'Unknown'
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -317,6 +418,12 @@ export default function NFTDetailPage() {
                       You own this
                     </span>
                   )}
+                  {uriType && (
+                    <span className="px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm font-medium flex items-center gap-1">
+                      <FileJson className="h-3 w-3" />
+                      {getUriTypeLabel()}
+                    </span>
+                  )}
                 </div>
                 <h1 className="text-3xl md:text-4xl font-bold text-white">
                   {displayName}
@@ -379,6 +486,22 @@ export default function NFTDetailPage() {
                       <ExternalLink className="h-3 w-3" />
                     </a>
                   </div>
+
+                  {/* External URL (if present in metadata) */}
+                  {externalUrl && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-white/60">External URL</span>
+                      <a
+                        href={externalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors truncate max-w-[200px]"
+                      >
+                        {externalUrl.replace(/^https?:\/\//, '').slice(0, 30)}...
+                        <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                      </a>
+                    </div>
+                  )}
 
                   {/* Token URI */}
                   <div className="pt-2 border-t border-white/10">
