@@ -454,8 +454,8 @@ export default function MyNFTsPage() {
                     <div>
                       <h4 className="font-medium text-blue-300">Tip: Event Scanning</h4>
                       <p className="text-sm text-blue-200/80 mt-1">
-                        We scan the blockchain in chunks to find your NFTs. If you recently minted an NFT but don't see it, 
-                        click "Load More" to scan additional blocks, or wait a moment for the transaction to be indexed.
+                        We scan the blockchain in chunks to find your NFTs. If you recently minted an NFT but don&apos;t see it, 
+                        click &quot;Load More&quot; to scan additional blocks, or wait a moment for the transaction to be indexed.
                       </p>
                     </div>
                   </div>
