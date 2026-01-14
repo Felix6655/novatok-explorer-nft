@@ -12,6 +12,12 @@ import { NFT_CONTRACT_ADDRESS, SEPOLIA_CHAIN_ID, isContractConfigured } from '@/
 import { TransferEventScanner, getNFTData } from '@/lib/nftClient'
 import { truncateAddress } from '@/lib/nftUtils'
 import { 
+  getCacheKey, 
+  loadCachedTokenIds, 
+  mergeCacheWithScanned,
+  removeTokenIdFromCache 
+} from '@/lib/localNftCache'
+import { 
   RefreshCw, 
   Plus, 
   Wallet, 
@@ -21,7 +27,9 @@ import {
   Search,
   Image as ImageIcon,
   Sparkles,
-  Info
+  Info,
+  Database,
+  CheckCircle2
 } from 'lucide-react'
 import Link from 'next/link'
 import { isAddress } from 'viem'
@@ -30,7 +38,7 @@ import { isAddress } from 'viem'
 const IS_DEV = process.env.NODE_ENV !== 'production'
 
 // NFT Card with loading state
-function NFTPreviewCard({ tokenId, nftData, isLoading }) {
+function NFTPreviewCard({ tokenId, nftData, isLoading, isCached }) {
   if (isLoading) {
     return (
       <Card className="bg-white/5 border-white/10 overflow-hidden">
@@ -87,6 +95,12 @@ function NFTPreviewCard({ tokenId, nftData, isLoading }) {
               {rarityTier}
             </div>
           )}
+          {/* Cached indicator */}
+          {isCached && (
+            <div className="absolute bottom-2 right-2 bg-blue-500/80 backdrop-blur-sm p-1 rounded" title="From local cache">
+              <Database className="h-3 w-3 text-white" />
+            </div>
+          )}
         </div>
         <CardContent className="p-4">
           <h3 className="font-semibold text-white truncate">{name}</h3>
@@ -100,7 +114,7 @@ function NFTPreviewCard({ tokenId, nftData, isLoading }) {
 }
 
 // Scan status component
-function ScanStatus({ isScanning, progress, blocksScanned, nftsFound, hasMore, onLoadMore }) {
+function ScanStatus({ isScanning, progress, nftsFound, hasMore, onLoadMore, isVerified, cachedCount }) {
   return (
     <Card className="bg-white/5 border-white/10 mb-6">
       <CardContent className="py-4">
@@ -111,22 +125,41 @@ function ScanStatus({ isScanning, progress, blocksScanned, nftsFound, hasMore, o
                 <Search className="h-5 w-5 text-purple-400 animate-pulse" />
                 <span className="text-white">Scanning blockchain...</span>
               </>
+            ) : isVerified ? (
+              <>
+                <CheckCircle2 className="h-5 w-5 text-green-400" />
+                <span className="text-white">Found {nftsFound} NFT{nftsFound !== 1 ? 's' : ''} (verified)</span>
+              </>
+            ) : cachedCount > 0 ? (
+              <>
+                <Database className="h-5 w-5 text-blue-400" />
+                <span className="text-white">Showing {cachedCount} cached NFT{cachedCount !== 1 ? 's' : ''}</span>
+              </>
             ) : (
               <>
-                <Sparkles className="h-5 w-5 text-green-400" />
-                <span className="text-white">Found {nftsFound} NFT{nftsFound !== 1 ? 's' : ''}</span>
+                <Sparkles className="h-5 w-5 text-purple-400" />
+                <span className="text-white">Ready to scan</span>
               </>
             )}
           </div>
-          {!isScanning && hasMore && (
+          {!isScanning && (
             <Button
               onClick={onLoadMore}
               variant="outline"
               size="sm"
               className="border-purple-500/50 text-purple-300 hover:bg-purple-500/20"
             >
-              <ChevronDown className="h-4 w-4 mr-1" />
-              Load More
+              {hasMore ? (
+                <>
+                  <ChevronDown className="h-4 w-4 mr-1" />
+                  {isVerified ? 'Load More' : 'Scan Blockchain'}
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  Rescan
+                </>
+              )}
             </Button>
           )}
         </div>
@@ -140,7 +173,13 @@ function ScanStatus({ isScanning, progress, blocksScanned, nftsFound, hasMore, o
           </div>
         )}
         
-        {!isScanning && hasMore && (
+        {!isScanning && !isVerified && cachedCount > 0 && (
+          <p className="text-xs text-blue-300/70 text-center">
+            Showing cached NFTs. Click &quot;Scan Blockchain&quot; to verify ownership.
+          </p>
+        )}
+        
+        {!isScanning && hasMore && isVerified && (
           <p className="text-xs text-white/40 text-center">
             Click &quot;Load More&quot; to scan older blocks for additional NFTs
           </p>
@@ -162,30 +201,58 @@ export default function MyNFTsPage() {
   
   // NFT state
   const [ownedTokenIds, setOwnedTokenIds] = useState([])
+  const [cachedTokenIds, setCachedTokenIds] = useState([])
   const [nftDataMap, setNftDataMap] = useState({})
   const [loadingTokenIds, setLoadingTokenIds] = useState(new Set())
   
   // UI state
   const [error, setError] = useState('')
-  const [initialScanDone, setInitialScanDone] = useState(false)
+  const [hasScanned, setHasScanned] = useState(false)
+  const [cacheKey, setCacheKey] = useState(null)
 
   // Derived state
   const isWrongNetwork = isConnected && chain?.id !== SEPOLIA_CHAIN_ID
   const hasValidContract = isContractConfigured() && isAddress(NFT_CONTRACT_ADDRESS)
   const canScan = isConnected && !isWrongNetwork && hasValidContract
+  
+  // Display token IDs (cached first, then merged with scanned)
+  const displayTokenIds = hasScanned 
+    ? ownedTokenIds 
+    : cachedTokenIds.length > 0 
+      ? cachedTokenIds 
+      : ownedTokenIds
 
-  // Initialize scanner when wallet connects
+  // Initialize cache key and load cached data
   useEffect(() => {
-    if (canScan && address) {
+    if (canScan && address && chain?.id) {
+      const key = getCacheKey({
+        chainId: chain.id,
+        contract: NFT_CONTRACT_ADDRESS,
+        wallet: address,
+      })
+      setCacheKey(key)
+      
+      // Load cached tokens immediately
+      if (key) {
+        const cached = loadCachedTokenIds(key)
+        setCachedTokenIds(cached)
+        if (IS_DEV && cached.length > 0) {
+          console.log('[MyNFTs] Loaded cached tokens:', cached)
+        }
+      }
+      
+      // Initialize scanner
       scannerRef.current = new TransferEventScanner(address)
     } else {
-      scannerRef.current = null;
+      scannerRef.current = null
+      setCacheKey(null)
+      setCachedTokenIds([])
       setOwnedTokenIds([])
       setNftDataMap({})
-      setInitialScanDone(false)
+      setHasScanned(false)
       setHasMoreBlocks(true)
     }
-  }, [canScan, address])
+  }, [canScan, address, chain?.id])
 
   // Fetch NFT metadata for a token
   const fetchNFTMetadata = useCallback(async (tokenId) => {
@@ -217,14 +284,14 @@ export default function MyNFTsPage() {
     }
   }, [nftDataMap, loadingTokenIds])
 
-  // Fetch metadata for new token IDs
+  // Fetch metadata for displayed token IDs
   useEffect(() => {
-    for (const tokenId of ownedTokenIds) {
+    for (const tokenId of displayTokenIds) {
       if (!nftDataMap[tokenId] && !loadingTokenIds.has(tokenId)) {
         fetchNFTMetadata(tokenId)
       }
     }
-  }, [ownedTokenIds, nftDataMap, loadingTokenIds, fetchNFTMetadata])
+  }, [displayTokenIds, nftDataMap, loadingTokenIds, fetchNFTMetadata])
 
   // Scan for NFTs
   const scanForNFTs = useCallback(async () => {
@@ -236,18 +303,37 @@ export default function MyNFTsPage() {
     try {
       const result = await scannerRef.current.scanNextChunk()
       
-      setOwnedTokenIds(result.ownedTokenIds)
+      // Merge scanned results with cache
+      const mergedIds = cacheKey 
+        ? mergeCacheWithScanned(cacheKey, result.ownedTokenIds)
+        : result.ownedTokenIds
+      
+      setOwnedTokenIds(mergedIds)
       setScanProgress(result.progress)
       setHasMoreBlocks(result.hasMore)
-      setInitialScanDone(true)
+      setHasScanned(true)
+      
+      // Remove any tokens that were transferred out
+      if (cacheKey && cachedTokenIds.length > 0) {
+        const ownedSet = new Set(result.ownedTokenIds)
+        for (const cachedId of cachedTokenIds) {
+          if (!ownedSet.has(cachedId)) {
+            // Token was transferred out - remove from cache
+            removeTokenIdFromCache(cacheKey, cachedId)
+            if (IS_DEV) {
+              console.log('[MyNFTs] Token transferred out, removed from cache:', cachedId)
+            }
+          }
+        }
+      }
       
       if (IS_DEV) {
         console.log('[MyNFTs] Scan result:', result)
+        console.log('[MyNFTs] Merged token IDs:', mergedIds)
       }
     } catch (err) {
       if (IS_DEV) console.error('[MyNFTs] Scan error:', err)
       
-      // Provide user-friendly error message
       let errorMsg = 'Failed to scan blockchain for your NFTs'
       if (err.message?.includes('rate limit')) {
         errorMsg = 'Rate limited by RPC. Please wait a moment and try again.'
@@ -258,14 +344,7 @@ export default function MyNFTsPage() {
     } finally {
       setIsScanning(false)
     }
-  }, [isScanning])
-
-  // Initial scan on mount
-  useEffect(() => {
-    if (canScan && !initialScanDone && !isScanning) {
-      scanForNFTs()
-    }
-  }, [canScan, initialScanDone, isScanning, scanForNFTs])
+  }, [isScanning, cacheKey, cachedTokenIds])
 
   // Reset and rescan
   const handleRefresh = useCallback(() => {
@@ -274,13 +353,19 @@ export default function MyNFTsPage() {
     }
     setOwnedTokenIds([])
     setNftDataMap({})
-    setInitialScanDone(false)
+    setHasScanned(false)
     setHasMoreBlocks(true)
     setError('')
     
+    // Reload cache
+    if (cacheKey) {
+      const cached = loadCachedTokenIds(cacheKey)
+      setCachedTokenIds(cached)
+    }
+    
     // Trigger new scan
     setTimeout(() => scanForNFTs(), 100)
-  }, [scanForNFTs])
+  }, [scanForNFTs, cacheKey])
 
   // Handle network switch
   const handleSwitchNetwork = () => {
@@ -404,7 +489,7 @@ export default function MyNFTsPage() {
         )}
 
         {/* Scan Status & NFT Grid */}
-        {canScan && initialScanDone && (
+        {canScan && (
           <>
             {/* Scan Status */}
             <ScanStatus
@@ -412,22 +497,25 @@ export default function MyNFTsPage() {
               progress={scanProgress}
               nftsFound={ownedTokenIds.length}
               hasMore={hasMoreBlocks}
-              onLoadMore={scanForNFTs}
+              onLoadMore={hasMoreBlocks ? scanForNFTs : handleRefresh}
+              isVerified={hasScanned}
+              cachedCount={cachedTokenIds.length}
             />
 
             {/* NFT Grid */}
-            {ownedTokenIds.length > 0 ? (
+            {displayTokenIds.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {ownedTokenIds.map((tokenId) => (
+                {displayTokenIds.map((tokenId) => (
                   <NFTPreviewCard
                     key={tokenId}
                     tokenId={tokenId}
                     nftData={nftDataMap[tokenId]}
                     isLoading={loadingTokenIds.has(tokenId) || !nftDataMap[tokenId]}
+                    isCached={!hasScanned && cachedTokenIds.includes(tokenId)}
                   />
                 ))}
               </div>
-            ) : !isScanning ? (
+            ) : !isScanning && !cachedTokenIds.length ? (
               <Card className="bg-white/5 border-white/10">
                 <CardContent className="py-16 text-center">
                   <ImageIcon className="h-16 w-16 text-white/40 mx-auto mb-4" />
@@ -445,17 +533,16 @@ export default function MyNFTsPage() {
               </Card>
             ) : null}
 
-            {/* Performance Note */}
-            {hasMoreBlocks && !isScanning && ownedTokenIds.length === 0 && (
+            {/* Cache Info Note */}
+            {cachedTokenIds.length > 0 && !hasScanned && !isScanning && (
               <Card className="bg-blue-500/10 border-blue-500/30 mt-6">
                 <CardContent className="py-4">
                   <div className="flex items-start gap-3">
                     <Info className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="font-medium text-blue-300">Tip: Event Scanning</h4>
+                      <h4 className="font-medium text-blue-300">Instant Loading Enabled</h4>
                       <p className="text-sm text-blue-200/80 mt-1">
-                        We scan the blockchain in chunks to find your NFTs. If you recently minted an NFT but don&apos;t see it, 
-                        click &quot;Load More&quot; to scan additional blocks, or wait a moment for the transaction to be indexed.
+                        Showing cached NFTs for instant access. Click &quot;Scan Blockchain&quot; to verify ownership and discover older NFTs.
                       </p>
                     </div>
                   </div>
@@ -465,18 +552,11 @@ export default function MyNFTsPage() {
           </>
         )}
 
-        {/* Initial Scanning State */}
-        {canScan && !initialScanDone && isScanning && (
-          <Card className="bg-white/5 border-white/10">
-            <CardContent className="py-16 text-center">
-              <Loader2 className="h-12 w-12 text-purple-400 mx-auto mb-4 animate-spin" />
-              <h2 className="text-xl font-semibold text-white mb-2">Scanning Blockchain</h2>
-              <p className="text-white/60 max-w-md mx-auto mb-4">
-                Looking for your NovaTok NFTs on Sepolia...
-              </p>
-              <Progress value={scanProgress.percent} className="max-w-xs mx-auto h-2" />
-            </CardContent>
-          </Card>
+        {/* Initial Loading State for Cached */}
+        {canScan && cachedTokenIds.length > 0 && isScanning && !hasScanned && (
+          <div className="text-center mt-4">
+            <p className="text-white/40 text-sm">Verifying ownership on blockchain...</p>
+          </div>
         )}
       </main>
     </div>

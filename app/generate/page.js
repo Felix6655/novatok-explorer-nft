@@ -17,6 +17,7 @@ import {
 } from '@/lib/nftGenerator'
 import { extractTokenIdFromReceipt } from '@/lib/nftUtils'
 import { uploadToIpfs, isIpfsAvailable } from '@/lib/ipfsUtils'
+import { getCacheKey, addTokenIdToCache } from '@/lib/localNftCache'
 import { 
   Loader2, 
   CheckCircle, 
@@ -96,7 +97,7 @@ function buildMetadataForIpfs(generatedNFT, tokenIdPlaceholder = 'TBD') {
 }
 
 export default function GeneratePage() {
-  const { isConnected, chain } = useAccount()
+  const { isConnected, address, chain } = useAccount()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
   
   // Trait state
@@ -129,6 +130,9 @@ export default function GeneratePage() {
   const isLocked = genState === GEN_STATE.GENERATED || genState === GEN_STATE.UPLOADING || genState === GEN_STATE.MINTING || genState === GEN_STATE.SUCCESS
   const isBusy = genState === GEN_STATE.UPLOADING || genState === GEN_STATE.MINTING || isMinting || isConfirming
 
+  // Extract minted token ID from receipt logs
+  const mintedTokenId = extractTokenIdFromReceipt(receipt, NFT_CONTRACT_ADDRESS)
+
   // Check IPFS availability on mount
   useEffect(() => {
     isIpfsAvailable().then(setIpfsAvailable)
@@ -149,13 +153,28 @@ export default function GeneratePage() {
     }
   }, [traits, isLocked])
 
-  // Handle mint success
+  // Handle mint success - cache the token ID
   useEffect(() => {
     if (isMinted) {
       setGenState(GEN_STATE.SUCCESS)
       setMintStatus('')
+      
+      // Cache the minted token ID for instant loading on My NFTs page
+      if (mintedTokenId !== null && address && chain?.id && NFT_CONTRACT_ADDRESS) {
+        const cacheKey = getCacheKey({
+          chainId: chain.id,
+          contract: NFT_CONTRACT_ADDRESS,
+          wallet: address,
+        })
+        if (cacheKey) {
+          addTokenIdToCache(cacheKey, mintedTokenId)
+          if (IS_DEV) {
+            console.log('[Generate] Cached minted token:', mintedTokenId)
+          }
+        }
+      }
     }
-  }, [isMinted])
+  }, [isMinted, mintedTokenId, address, chain?.id])
 
   // Update trait
   const updateTrait = useCallback((key, value) => {
@@ -293,9 +312,6 @@ export default function GeneratePage() {
   const handleSwitchNetwork = () => {
     switchChain?.({ chainId: SEPOLIA_CHAIN_ID })
   }
-
-  // Extract minted token ID from receipt logs
-  const mintedTokenId = extractTokenIdFromReceipt(receipt, NFT_CONTRACT_ADDRESS)
 
   // Combined error display
   const displayError = error || (mintError?.shortMessage) || (mintError?.message ? 'Transaction failed' : '')
