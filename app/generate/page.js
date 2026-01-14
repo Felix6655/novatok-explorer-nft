@@ -16,6 +16,7 @@ import {
   generateSeed 
 } from '@/lib/nftGenerator'
 import { extractTokenIdFromReceipt } from '@/lib/nftUtils'
+import { uploadToIpfs, isIpfsAvailable } from '@/lib/ipfsUtils'
 import { 
   Loader2, 
   CheckCircle, 
@@ -26,7 +27,10 @@ import {
   Unlock,
   RefreshCw,
   Wallet,
-  AlertTriangle
+  AlertTriangle,
+  Cloud,
+  CloudOff,
+  Upload
 } from 'lucide-react'
 import Link from 'next/link'
 import { isAddress } from 'viem'
@@ -39,37 +43,56 @@ const GEN_STATE = {
   EDITING: 'editing',
   PREVIEWING: 'previewing',
   GENERATED: 'generated',
+  UPLOADING: 'uploading',
   MINTING: 'minting',
   SUCCESS: 'success',
 }
 
+// Mint status messages
+const MINT_STATUS = {
+  UPLOADING: 'Uploading to IPFS...',
+  UPLOAD_FAILED: 'IPFS unavailable, using on-chain storage...',
+  MINTING: 'Confirm in wallet...',
+  CONFIRMING: 'Minting on blockchain...',
+}
+
 /**
  * Build standards-compliant ERC721 JSON metadata with base64 image
- * and encode as data:application/json;base64 tokenURI
+ * and encode as data:application/json;base64 tokenURI (fallback)
  */
-function buildTokenURI(generatedNFT, tokenIdPlaceholder = 'TBD') {
-  // Get the base URL for external_url
+function buildDataUriTokenURI(generatedNFT, tokenIdPlaceholder = 'TBD') {
   const baseUrl = typeof window !== 'undefined' 
     ? window.location.origin 
     : process.env.NEXT_PUBLIC_BASE_URL || ''
 
-  // Build metadata object per ERC721 metadata standard
   const metadata = {
     name: generatedNFT.metadata.name,
     description: generatedNFT.metadata.description,
-    image: generatedNFT.imageDataUrl, // data:image/png;base64,...
+    image: generatedNFT.imageDataUrl,
     external_url: `${baseUrl}/nft/${tokenIdPlaceholder}`,
     attributes: generatedNFT.metadata.attributes,
   }
 
-  // Convert to JSON string
   const jsonString = JSON.stringify(metadata)
-  
-  // Encode as base64 data URI
-  // Using btoa for browser, which handles ASCII. For Unicode, we'd need TextEncoder
   const base64 = btoa(unescape(encodeURIComponent(jsonString)))
   
   return `data:application/json;base64,${base64}`
+}
+
+/**
+ * Build metadata object for IPFS upload
+ */
+function buildMetadataForIpfs(generatedNFT, tokenIdPlaceholder = 'TBD') {
+  const baseUrl = typeof window !== 'undefined' 
+    ? window.location.origin 
+    : process.env.NEXT_PUBLIC_BASE_URL || ''
+
+  return {
+    name: generatedNFT.metadata.name,
+    description: generatedNFT.metadata.description,
+    external_url: `${baseUrl}/nft/${tokenIdPlaceholder}`,
+    attributes: generatedNFT.metadata.attributes,
+  }
 }
 
 export default function GeneratePage() {
@@ -84,6 +107,12 @@ export default function GeneratePage() {
   const [generatedNFT, setGeneratedNFT] = useState(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState('')
+  const [mintStatus, setMintStatus] = useState('')
+  
+  // IPFS state
+  const [ipfsAvailable, setIpfsAvailable] = useState(null)
+  const [usedIpfs, setUsedIpfs] = useState(false)
+  const [ipfsUri, setIpfsUri] = useState('')
   
   // Canvas ref for preview
   const canvasRef = useRef(null)
@@ -97,7 +126,13 @@ export default function GeneratePage() {
   const isWrongNetwork = isConnected && chain?.id !== SEPOLIA_CHAIN_ID
   const hasValidContract = isContractConfigured() && isAddress(NFT_CONTRACT_ADDRESS)
   const canMint = isConnected && !isWrongNetwork && hasValidContract && genState === GEN_STATE.GENERATED
-  const isLocked = genState === GEN_STATE.GENERATED || genState === GEN_STATE.MINTING || genState === GEN_STATE.SUCCESS
+  const isLocked = genState === GEN_STATE.GENERATED || genState === GEN_STATE.UPLOADING || genState === GEN_STATE.MINTING || genState === GEN_STATE.SUCCESS
+  const isBusy = genState === GEN_STATE.UPLOADING || genState === GEN_STATE.MINTING || isMinting || isConfirming
+
+  // Check IPFS availability on mount
+  useEffect(() => {
+    isIpfsAvailable().then(setIpfsAvailable)
+  }, [])
 
   // Initialize renderer
   useEffect(() => {
@@ -118,6 +153,7 @@ export default function GeneratePage() {
   useEffect(() => {
     if (isMinted) {
       setGenState(GEN_STATE.SUCCESS)
+      setMintStatus('')
     }
   }, [isMinted])
 
@@ -137,6 +173,8 @@ export default function GeneratePage() {
       const nft = await generateNFT(traits, 1024)
       setGeneratedNFT(nft)
       setGenState(GEN_STATE.GENERATED)
+      setUsedIpfs(false)
+      setIpfsUri('')
       
       if (IS_DEV) {
         console.log('[Generate] NFT generated:', nft.seed)
@@ -154,9 +192,11 @@ export default function GeneratePage() {
     setGeneratedNFT(null)
     setGenState(GEN_STATE.EDITING)
     setError('')
+    setMintStatus('')
+    setUsedIpfs(false)
+    setIpfsUri('')
     resetMint?.()
     
-    // Re-render preview
     if (rendererRef.current) {
       rendererRef.current.render(traits)
     }
@@ -185,34 +225,67 @@ export default function GeneratePage() {
     link.click()
   }
 
-  // Handle mint - builds JSON metadata tokenURI
+  // Handle mint - tries IPFS first, falls back to data URI
   const handleMint = async () => {
     if (!canMint || !generatedNFT) return
     
     setError('')
-    setGenState(GEN_STATE.MINTING)
+    setGenState(GEN_STATE.UPLOADING)
+    
+    let tokenURI = ''
+    let didUseIpfs = false
     
     try {
-      // Build standards-compliant tokenURI with embedded JSON metadata
-      // The tokenId in external_url is a placeholder - it will be set after minting
-      const tokenURI = buildTokenURI(generatedNFT, generatedNFT.seed)
+      // Try IPFS upload first
+      setMintStatus(MINT_STATUS.UPLOADING)
       
-      if (IS_DEV) {
-        console.log('[Mint] TokenURI length:', tokenURI.length)
-        console.log('[Mint] TokenURI preview:', tokenURI.substring(0, 100) + '...')
+      try {
+        const metadata = buildMetadataForIpfs(generatedNFT, generatedNFT.seed)
+        const ipfsResult = await uploadToIpfs(generatedNFT.imageDataUrl, metadata)
+        
+        tokenURI = ipfsResult.metadataUri
+        didUseIpfs = true
+        setIpfsUri(tokenURI)
+        
+        if (IS_DEV) {
+          console.log('[Mint] IPFS upload successful:', ipfsResult)
+        }
+      } catch (ipfsError) {
+        // IPFS failed - use fallback
+        if (IS_DEV) {
+          console.log('[Mint] IPFS unavailable, using data URI fallback:', ipfsError.message)
+        }
+        
+        setMintStatus(MINT_STATUS.UPLOAD_FAILED)
+        await new Promise(resolve => setTimeout(resolve, 1500)) // Brief pause to show message
+        
+        tokenURI = buildDataUriTokenURI(generatedNFT, generatedNFT.seed)
+        didUseIpfs = false
       }
       
-      // Call mint function with the tokenURI
+      setUsedIpfs(didUseIpfs)
+      setGenState(GEN_STATE.MINTING)
+      setMintStatus(MINT_STATUS.MINTING)
+      
+      if (IS_DEV) {
+        console.log('[Mint] TokenURI:', didUseIpfs ? tokenURI : `${tokenURI.substring(0, 50)}...`)
+      }
+      
+      // Call mint function
       writeContract({
         address: NFT_CONTRACT_ADDRESS,
         abi: NOVATOK_NFT_ABI,
         functionName: 'mint',
         args: [tokenURI],
       })
+      
+      setMintStatus(MINT_STATUS.CONFIRMING)
+      
     } catch (err) {
       if (IS_DEV) console.error('[Mint] Error:', err)
       setError('Failed to initiate mint. Please try again.')
       setGenState(GEN_STATE.GENERATED)
+      setMintStatus('')
     }
   }
 
@@ -239,6 +312,27 @@ export default function GeneratePage() {
             <h1 className="text-4xl font-bold text-white mb-2">NFT Generator</h1>
             <p className="text-white/60">Create your unique procedurally generated NFT</p>
           </div>
+
+          {/* IPFS Status Banner */}
+          {ipfsAvailable !== null && (
+            <Card className={`mb-6 ${ipfsAvailable ? 'bg-green-500/10 border-green-500/30' : 'bg-slate-500/10 border-slate-500/30'}`}>
+              <CardContent className="py-3">
+                <div className="flex items-center gap-3">
+                  {ipfsAvailable ? (
+                    <>
+                      <Cloud className="h-5 w-5 text-green-400" />
+                      <span className="text-green-300 text-sm">IPFS enabled - Your NFT will be stored on decentralized storage</span>
+                    </>
+                  ) : (
+                    <>
+                      <CloudOff className="h-5 w-5 text-slate-400" />
+                      <span className="text-slate-300 text-sm">IPFS not configured - NFT will use on-chain storage (higher gas cost)</span>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Contract Warning */}
           {!hasValidContract && (
@@ -284,7 +378,7 @@ export default function GeneratePage() {
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-white">
                       {genState === GEN_STATE.SUCCESS ? 'Minted NFT' : 
-                       genState === GEN_STATE.GENERATED ? 'Generated NFT' : 
+                       genState === GEN_STATE.GENERATED || genState === GEN_STATE.UPLOADING || genState === GEN_STATE.MINTING ? 'Generated NFT' : 
                        'Live Preview'}
                     </CardTitle>
                     {isLocked ? (
@@ -297,15 +391,13 @@ export default function GeneratePage() {
                 <CardContent className="p-4">
                   {/* Canvas Preview */}
                   <div className="aspect-square bg-black/20 rounded-lg overflow-hidden relative">
-                    {genState === GEN_STATE.GENERATED || genState === GEN_STATE.MINTING || genState === GEN_STATE.SUCCESS ? (
-                      // Show generated high-res image
+                    {genState === GEN_STATE.GENERATED || genState === GEN_STATE.UPLOADING || genState === GEN_STATE.MINTING || genState === GEN_STATE.SUCCESS ? (
                       <img 
                         src={generatedNFT?.imageDataUrl} 
                         alt="Generated NFT"
                         className="w-full h-full object-contain"
                       />
                     ) : (
-                      // Show live preview canvas
                       <canvas
                         ref={canvasRef}
                         className="w-full h-full"
@@ -314,9 +406,12 @@ export default function GeneratePage() {
                     )}
                     
                     {/* Loading overlay */}
-                    {isGenerating && (
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                        <Loader2 className="h-8 w-8 text-white animate-spin" />
+                    {(isGenerating || genState === GEN_STATE.UPLOADING) && (
+                      <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center">
+                        <Loader2 className="h-8 w-8 text-white animate-spin mb-2" />
+                        {genState === GEN_STATE.UPLOADING && (
+                          <span className="text-white text-sm">{mintStatus}</span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -333,13 +428,18 @@ export default function GeneratePage() {
               {/* Action Buttons */}
               <div className="space-y-3">
                 {genState === GEN_STATE.SUCCESS ? (
-                  // Success state
                   <Card className="bg-green-500/10 border-green-500/30">
                     <CardContent className="py-6 text-center">
                       <CheckCircle className="h-12 w-12 text-green-400 mx-auto mb-3" />
                       <h3 className="text-xl font-semibold text-green-300 mb-2">NFT Minted!</h3>
                       {mintedTokenId !== null && (
-                        <p className="text-green-200 mb-4">Token ID: #{mintedTokenId}</p>
+                        <p className="text-green-200 mb-2">Token ID: #{mintedTokenId}</p>
+                      )}
+                      {usedIpfs && ipfsUri && (
+                        <p className="text-green-200/70 text-sm mb-4 flex items-center justify-center gap-1">
+                          <Cloud className="h-4 w-4" />
+                          Stored on IPFS
+                        </p>
                       )}
                       <div className="flex flex-wrap justify-center gap-3">
                         <a
@@ -369,12 +469,12 @@ export default function GeneratePage() {
                       </Button>
                     </CardContent>
                   </Card>
-                ) : genState === GEN_STATE.GENERATED ? (
-                  // Generated state - ready to mint
+                ) : genState === GEN_STATE.GENERATED || genState === GEN_STATE.UPLOADING || genState === GEN_STATE.MINTING ? (
                   <>
                     <div className="flex gap-3">
                       <Button
                         onClick={handleDownload}
+                        disabled={isBusy}
                         variant="outline"
                         className="flex-1 border-white/20 text-white hover:bg-white/10"
                       >
@@ -383,6 +483,7 @@ export default function GeneratePage() {
                       </Button>
                       <Button
                         onClick={handleReset}
+                        disabled={isBusy}
                         variant="outline"
                         className="flex-1 border-white/20 text-white hover:bg-white/10"
                       >
@@ -401,10 +502,15 @@ export default function GeneratePage() {
                     ) : (
                       <Button
                         onClick={handleMint}
-                        disabled={!canMint || isMinting || isConfirming}
+                        disabled={!canMint || isBusy}
                         className="w-full h-12 text-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                       >
-                        {isMinting ? (
+                        {genState === GEN_STATE.UPLOADING ? (
+                          <>
+                            <Upload className="h-5 w-5 mr-2 animate-pulse" />
+                            {mintStatus}
+                          </>
+                        ) : isMinting ? (
                           <>
                             <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                             Confirm in Wallet...
@@ -418,6 +524,7 @@ export default function GeneratePage() {
                           <>
                             <Sparkles className="h-5 w-5 mr-2" />
                             Mint NFT
+                            {ipfsAvailable && <Cloud className="h-4 w-4 ml-2" />}
                           </>
                         )}
                       </Button>
@@ -439,7 +546,6 @@ export default function GeneratePage() {
                     )}
                   </>
                 ) : (
-                  // Editing/Previewing state
                   <>
                     <div className="flex gap-3">
                       <Button
@@ -512,10 +618,10 @@ export default function GeneratePage() {
               </Card>
 
               {/* Metadata Preview */}
-              {(genState === GEN_STATE.GENERATED || genState === GEN_STATE.SUCCESS) && generatedNFT && (
+              {(genState === GEN_STATE.GENERATED || genState === GEN_STATE.UPLOADING || genState === GEN_STATE.MINTING || genState === GEN_STATE.SUCCESS) && generatedNFT && (
                 <Card className="bg-white/5 border-white/10">
                   <CardHeader>
-                    <CardTitle className="text-white text-lg">On-Chain Metadata</CardTitle>
+                    <CardTitle className="text-white text-lg">Metadata</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3 text-sm">
@@ -524,9 +630,17 @@ export default function GeneratePage() {
                         <span className="text-white ml-2">{generatedNFT.metadata.name}</span>
                       </div>
                       <div>
-                        <span className="text-white/60">Format:</span>
-                        <span className="text-purple-300 ml-2">data:application/json;base64</span>
+                        <span className="text-white/60">Storage:</span>
+                        <span className={`ml-2 ${usedIpfs ? 'text-green-300' : 'text-purple-300'}`}>
+                          {usedIpfs ? 'IPFS (Decentralized)' : ipfsAvailable ? 'Pending upload' : 'On-chain (Data URI)'}
+                        </span>
                       </div>
+                      {usedIpfs && ipfsUri && (
+                        <div>
+                          <span className="text-white/60">IPFS URI:</span>
+                          <code className="text-green-300 ml-2 text-xs break-all">{ipfsUri}</code>
+                        </div>
+                      )}
                       <div>
                         <span className="text-white/60">Attributes:</span>
                         <div className="mt-2 flex flex-wrap gap-2">

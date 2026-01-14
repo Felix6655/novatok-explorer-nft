@@ -18,6 +18,7 @@ import {
   getNftErrorMessage,
   formatTokenUri
 } from '@/lib/nftUtils'
+import { ipfsToHttp, isIpfsUri } from '@/lib/ipfsUtils'
 import { 
   ArrowLeft, 
   ExternalLink, 
@@ -29,7 +30,8 @@ import {
   Wallet,
   Image as ImageIcon,
   Link as LinkIcon,
-  FileJson
+  FileJson,
+  Cloud
 } from 'lucide-react'
 import Link from 'next/link'
 import { isAddress } from 'viem'
@@ -56,12 +58,28 @@ function NFTDetailSkeleton() {
 }
 
 /**
+ * Resolve an image URL, converting IPFS URIs to HTTP gateway URLs
+ */
+function resolveImageUrl(imageUrl) {
+  if (!imageUrl) return ''
+  
+  // Handle IPFS URLs
+  if (isIpfsUri(imageUrl)) {
+    return ipfsToHttp(imageUrl)
+  }
+  
+  // Handle data URIs and HTTP URLs as-is
+  return imageUrl
+}
+
+/**
  * Decode and parse tokenURI to extract metadata
  * Supports:
  * - data:application/json;base64,... (base64 encoded JSON)
  * - data:application/json,... (URL-encoded JSON)
  * - data:image/... (direct image data URI)
  * - http(s):// URLs pointing to JSON or images
+ * - ipfs:// URIs
  */
 async function parseTokenURI(uri) {
   if (!uri || typeof uri !== 'string') {
@@ -72,12 +90,11 @@ async function parseTokenURI(uri) {
     // Case 1: Base64 encoded JSON data URI
     if (uri.startsWith('data:application/json;base64,')) {
       const base64Data = uri.replace('data:application/json;base64,', '')
-      // Decode base64 and handle Unicode
       const jsonString = decodeURIComponent(escape(atob(base64Data)))
       const metadata = JSON.parse(jsonString)
       return {
         metadata,
-        imageUrl: metadata.image || '',
+        imageUrl: resolveImageUrl(metadata.image),
         uriType: 'json-base64'
       }
     }
@@ -89,7 +106,7 @@ async function parseTokenURI(uri) {
       const metadata = JSON.parse(jsonString)
       return {
         metadata,
-        imageUrl: metadata.image || '',
+        imageUrl: resolveImageUrl(metadata.image),
         uriType: 'json-urlencoded'
       }
     }
@@ -103,9 +120,57 @@ async function parseTokenURI(uri) {
       }
     }
 
-    // Case 4: HTTP(S) URL
+    // Case 4: IPFS URI - convert to HTTP and fetch
+    if (uri.startsWith('ipfs://')) {
+      const httpUrl = ipfsToHttp(uri)
+      
+      try {
+        const response = await fetch(httpUrl)
+        const contentType = response.headers.get('content-type') || ''
+        
+        if (contentType.includes('application/json') || httpUrl.endsWith('.json')) {
+          const metadata = await response.json()
+          return {
+            metadata,
+            imageUrl: resolveImageUrl(metadata.image),
+            uriType: 'ipfs-json'
+          }
+        } else if (contentType.includes('image/')) {
+          return {
+            metadata: null,
+            imageUrl: httpUrl,
+            uriType: 'ipfs-image'
+          }
+        } else {
+          // Try parsing as JSON
+          const text = await response.text()
+          try {
+            const metadata = JSON.parse(text)
+            return {
+              metadata,
+              imageUrl: resolveImageUrl(metadata.image),
+              uriType: 'ipfs-json'
+            }
+          } catch {
+            return {
+              metadata: null,
+              imageUrl: httpUrl,
+              uriType: 'ipfs-unknown'
+            }
+          }
+        }
+      } catch (fetchErr) {
+        if (IS_DEV) console.error('[parseTokenURI] IPFS fetch error:', fetchErr)
+        return {
+          metadata: null,
+          imageUrl: httpUrl,
+          uriType: 'ipfs-error'
+        }
+      }
+    }
+
+    // Case 5: HTTP(S) URL
     if (uri.startsWith('http://') || uri.startsWith('https://')) {
-      // Check if it's a direct image URL
       if (isImageUri(uri)) {
         return {
           metadata: null,
@@ -114,7 +179,6 @@ async function parseTokenURI(uri) {
         }
       }
 
-      // Try to fetch as JSON
       try {
         const response = await fetch(uri)
         const contentType = response.headers.get('content-type') || ''
@@ -123,7 +187,7 @@ async function parseTokenURI(uri) {
           const metadata = await response.json()
           return {
             metadata,
-            imageUrl: metadata.image || '',
+            imageUrl: resolveImageUrl(metadata.image),
             uriType: 'json-url'
           }
         } else if (contentType.includes('image/')) {
@@ -133,17 +197,15 @@ async function parseTokenURI(uri) {
             uriType: 'image-url'
           }
         } else {
-          // Try parsing as JSON anyway
           const text = await response.text()
           try {
             const metadata = JSON.parse(text)
             return {
               metadata,
-              imageUrl: metadata.image || '',
+              imageUrl: resolveImageUrl(metadata.image),
               uriType: 'json-url'
             }
           } catch {
-            // Not JSON, treat as image
             return {
               metadata: null,
               imageUrl: uri,
@@ -153,19 +215,12 @@ async function parseTokenURI(uri) {
         }
       } catch (fetchErr) {
         if (IS_DEV) console.error('[parseTokenURI] Fetch error:', fetchErr)
-        // Fetch failed, maybe it's an image URL that doesn't allow CORS
         return {
           metadata: null,
           imageUrl: uri,
           uriType: 'image-url'
         }
       }
-    }
-
-    // Case 5: IPFS URI (ipfs://...)
-    if (uri.startsWith('ipfs://')) {
-      const httpUrl = uri.replace('ipfs://', 'https://ipfs.io/ipfs/')
-      return parseTokenURI(httpUrl)
     }
 
     // Fallback: treat as image URL
@@ -204,6 +259,7 @@ export default function NFTDetailPage() {
   const isWrongNetwork = isConnected && chain?.id !== SEPOLIA_CHAIN_ID
   const hasValidContract = isContractConfigured() && isAddress(NFT_CONTRACT_ADDRESS)
   const isOwner = address && owner && address.toLowerCase() === owner.toLowerCase()
+  const isIpfsStored = uriType?.startsWith('ipfs-') || tokenURI?.startsWith('ipfs://')
 
   // Copy to clipboard helper
   const copyToClipboard = (text, field) => {
@@ -223,7 +279,6 @@ export default function NFTDetailPage() {
     setError('')
 
     try {
-      // Fetch tokenURI and owner in parallel
       const [uri, ownerAddr] = await Promise.all([
         getTokenURI(parseInt(tokenId)),
         getOwnerOf(parseInt(tokenId))
@@ -232,7 +287,6 @@ export default function NFTDetailPage() {
       setTokenURI(uri)
       setOwner(ownerAddr)
 
-      // Parse the tokenURI to extract metadata and image
       const parsed = await parseTokenURI(uri)
       setMetadata(parsed.metadata)
       setImageUrl(parsed.imageUrl)
@@ -251,17 +305,15 @@ export default function NFTDetailPage() {
     }
   }, [tokenId, hasValidContract])
 
-  // Fetch on mount and when dependencies change
   useEffect(() => {
     fetchNFTData()
   }, [fetchNFTData])
 
-  // Handle network switch
   const handleSwitchNetwork = () => {
     switchChain?.({ chainId: SEPOLIA_CHAIN_ID })
   }
 
-  // Get display name
+  // Get display values
   const displayName = metadata?.name || `NFT #${tokenId}`
   const description = metadata?.description || ''
   const attributes = metadata?.attributes || []
@@ -270,9 +322,12 @@ export default function NFTDetailPage() {
   // Get URI type label for display
   const getUriTypeLabel = () => {
     switch (uriType) {
-      case 'json-base64': return 'On-chain JSON (base64)'
+      case 'json-base64': return 'On-chain JSON'
       case 'json-urlencoded': return 'On-chain JSON'
       case 'json-url': return 'External JSON'
+      case 'ipfs-json': return 'IPFS JSON'
+      case 'ipfs-image': return 'IPFS Image'
+      case 'ipfs-unknown': return 'IPFS'
       case 'image-data': return 'On-chain Image'
       case 'image-url': return 'External Image'
       default: return 'Unknown'
@@ -420,7 +475,7 @@ export default function NFTDetailPage() {
                   )}
                   {uriType && (
                     <span className="px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm font-medium flex items-center gap-1">
-                      <FileJson className="h-3 w-3" />
+                      {isIpfsStored ? <Cloud className="h-3 w-3" /> : <FileJson className="h-3 w-3" />}
                       {getUriTypeLabel()}
                     </span>
                   )}
@@ -508,9 +563,9 @@ export default function NFTDetailPage() {
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-white/60">Token URI</span>
                       <div className="flex items-center gap-2">
-                        {tokenURI.startsWith('http') && (
+                        {(tokenURI.startsWith('http') || tokenURI.startsWith('ipfs://')) && (
                           <a
-                            href={tokenURI}
+                            href={tokenURI.startsWith('ipfs://') ? ipfsToHttp(tokenURI) : tokenURI}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-purple-400 hover:text-purple-300 transition-colors"
