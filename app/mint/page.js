@@ -14,6 +14,7 @@ import { NOVATOK_NFT_ABI, NFT_CONTRACT_ADDRESS, SEPOLIA_CHAIN_ID } from '@/lib/c
 import { Loader2, CheckCircle, ExternalLink, ImageIcon, AlertTriangle, Bug, Wallet, Copy, Check } from 'lucide-react'
 import Link from 'next/link'
 import { isAddress } from 'viem'
+import { extractTokenIdFromReceipt, truncateAddress, toEtherscanTxUrl } from '@/lib/nftUtils'
 
 // Environment check - only show debug in development
 const IS_DEV = process.env.NODE_ENV !== 'production'
