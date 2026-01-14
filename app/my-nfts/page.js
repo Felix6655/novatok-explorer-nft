@@ -433,7 +433,7 @@ export default function MyNFTsPage() {
                   <ImageIcon className="h-16 w-16 text-white/40 mx-auto mb-4" />
                   <h2 className="text-xl font-semibold text-white mb-2">No NFTs Found</h2>
                   <p className="text-white/60 max-w-md mx-auto mb-6">
-                    You don't own any NovaTok NFTs yet. Create your first one!
+                    You don&apos;t own any NovaTok NFTs yet. Create your first one!
                   </p>
                   <Link href="/generate">
                     <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
