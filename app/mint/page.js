@@ -351,7 +351,7 @@ export default function MintPage() {
                 </Button>
 
                 {/* Help text */}
-                {!canMint && isConnected && !isWrongNetwork && hasContractAddress && (
+                {!canMint && isConnected && !isWrongNetwork && hasValidContractAddress && (
                   <p className="text-center text-sm text-white/40">
                     Please enter a valid image URL to enable minting
                   </p>
