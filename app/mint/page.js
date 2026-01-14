@@ -150,7 +150,7 @@ export default function MintPage() {
           <p className="text-white/60 mb-8">Create your unique NFT on Sepolia testnet</p>
 
           {/* Contract Not Configured Warning */}
-          {!hasContractAddress && (
+          {!hasValidContractAddress && (
             <Card className="bg-orange-500/10 border-orange-500/30 mb-6">
               <CardContent className="py-4">
                 <div className="flex items-start gap-3">
