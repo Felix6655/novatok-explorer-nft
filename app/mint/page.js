@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { NOVATOK_NFT_ABI, NFT_CONTRACT_ADDRESS, SEPOLIA_CHAIN_ID } from '@/lib/contractConfig'
 import { Loader2, CheckCircle, ExternalLink, ImageIcon, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
+import { isAddress } from 'viem'
 
 // Helper to validate URL
 function isValidUrl(string) {
