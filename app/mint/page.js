@@ -305,7 +305,7 @@ export default function MintPage() {
                     <Input
                       id="imageUrl"
                       value={imageUrl}
-                      onChange={(e) => setImageUrl(e.target.value)}
+                      onChange={handleImageUrlChange}
                       placeholder="https://example.com/image.png"
                       className={`mt-1.5 bg-white/5 border-white/10 text-white placeholder:text-white/40 ${
                         imageUrl && !isValidImageUrl ? 'border-red-500/50' : ''
