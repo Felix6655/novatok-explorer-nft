@@ -15,6 +15,7 @@ export function Header() {
   const navItems = [
     { href: '/', label: 'Home' },
     { href: '/marketplace', label: 'Marketplace' },
+    { href: '/generate', label: 'Generate' },
     { href: '/mint', label: 'Mint' },
     { href: '/my-nfts', label: 'My NFTs' },
   ]
