@@ -57,10 +57,11 @@ export default function MintPage() {
                   imageUrl.trim().length > 0 &&
                   isValidImageUrl
 
-  // Clear local error when form changes
-  useEffect(() => {
+  // Handle image URL change - clear errors
+  const handleImageUrlChange = (e) => {
+    setImageUrl(e.target.value)
     if (localError) setLocalError('')
-  }, [imageUrl])
+  }
 
   const handleMint = async () => {
     // Clear previous errors
