@@ -80,8 +80,8 @@ export default function MintPage() {
       return
     }
 
-    if (!hasContractAddress) {
-      setLocalError('NFT contract address is not configured. Please set NEXT_PUBLIC_NFT_CONTRACT_ADDRESS.')
+    if (!hasValidContractAddress) {
+      setLocalError('NFT contract address is not configured or invalid. Please set a valid NEXT_PUBLIC_NFT_CONTRACT_ADDRESS.')
       return
     }
 
