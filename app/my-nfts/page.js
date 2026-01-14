@@ -348,7 +348,7 @@ export default function MyNFTsPage() {
               <Wallet className="h-16 w-16 text-white/40 mx-auto mb-4" />
               <h2 className="text-xl font-semibold text-white mb-2">Connect Your Wallet</h2>
               <p className="text-white/60 max-w-md mx-auto">
-                Connect your wallet to view your NFTs. We'll scan the blockchain for any NovaTok NFTs in your wallet.
+                Connect your wallet to view your NFTs. We&apos;ll scan the blockchain for any NovaTok NFTs in your wallet.
               </p>
             </CardContent>
           </Card>
