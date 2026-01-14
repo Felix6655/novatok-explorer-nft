@@ -48,13 +48,13 @@ export default function MintPage() {
 
   // Derived state
   const isWrongNetwork = isConnected && chain?.id !== SEPOLIA_CHAIN_ID
-  const hasContractAddress = Boolean(NFT_CONTRACT_ADDRESS && NFT_CONTRACT_ADDRESS.length > 0)
+  const hasValidContractAddress = NFT_CONTRACT_ADDRESS && isAddress(NFT_CONTRACT_ADDRESS)
   const isValidImageUrl = isValidUrl(imageUrl)
   
   // Can mint only if all conditions are met
   const canMint = isConnected && 
                   !isWrongNetwork && 
-                  hasContractAddress && 
+                  hasValidContractAddress && 
                   imageUrl.trim().length > 0 &&
                   isValidImageUrl
 
