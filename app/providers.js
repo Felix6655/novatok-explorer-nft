@@ -3,40 +3,43 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WagmiProvider, createConfig, http } from 'wagmi'
 import { sepolia } from 'wagmi/chains'
-import { walletConnect, injected, coinbaseWallet } from 'wagmi/connectors'
+import { injected, walletConnect, coinbaseWallet } from 'wagmi/connectors'
 import { useState } from 'react'
 
-// Get WalletConnect Project ID from environment
-const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
+// WalletConnect Project ID (optional)
+const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
 
-if (!projectId) {
-  console.warn(
-    'WalletConnect Project ID not found. Please add NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID to your .env file.'
+// Build connectors array
+const connectors = [
+  // Injected connector (MetaMask, etc) - always available
+  injected({
+    shimDisconnect: true,
+  }),
+]
+
+// Add WalletConnect and Coinbase only if project ID exists
+if (walletConnectProjectId) {
+  connectors.push(
+    walletConnect({
+      projectId: walletConnectProjectId,
+      metadata: {
+        name: 'NovaTok NFT Marketplace',
+        description: 'NFT Marketplace on Sepolia',
+        url: typeof window !== 'undefined' ? window.location.origin : 'https://novatok.app',
+        icons: [],
+      },
+      showQrModal: true,
+    }),
+    coinbaseWallet({
+      appName: 'NovaTok NFT Marketplace',
+    })
   )
 }
 
 // Create wagmi config - Sepolia only
 const config = createConfig({
   chains: [sepolia],
-  connectors: [
-    injected(),
-    ...(projectId
-      ? [
-          walletConnect({
-            projectId,
-            metadata: {
-              name: 'NovaTok NFT Marketplace',
-              description: 'NFT Marketplace powered by NovaTok on Sepolia',
-              url: typeof window !== 'undefined' ? window.location.origin : '',
-              icons: [],
-            },
-          }),
-          coinbaseWallet({
-            appName: 'NovaTok NFT Marketplace',
-          }),
-        ]
-      : []),
-  ],
+  connectors,
   transports: {
     [sepolia.id]: http(process.env.NEXT_PUBLIC_RPC_URL || 'https://rpc.sepolia.org'),
   },
@@ -44,7 +47,14 @@ const config = createConfig({
 })
 
 export function Providers({ children }) {
-  const [queryClient] = useState(() => new QueryClient())
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 60 * 1000,
+        retry: 1,
+      },
+    },
+  }))
 
   return (
     <WagmiProvider config={config}>
