@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useState, useEffect } from 'react'
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi'
 import { Header } from '@/components/Header'
 import { NetworkBanner } from '@/components/NetworkBanner'
 import { ErrorBanner } from '@/components/ErrorBanner'
@@ -11,55 +11,131 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { NOVATOK_NFT_ABI, NFT_CONTRACT_ADDRESS, SEPOLIA_CHAIN_ID } from '@/lib/contractConfig'
-import { createTokenURI } from '@/lib/nftClient'
-import { Loader2, CheckCircle, ExternalLink, ImageIcon } from 'lucide-react'
+import { Loader2, CheckCircle, ExternalLink, ImageIcon, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
+
+// Helper to validate URL
+function isValidUrl(string) {
+  try {
+    const url = new URL(string)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+// Helper to create a simple tokenURI - just the image URL for now
+function createSimpleTokenURI(imageUrl) {
+  // For simplicity, just return the image URL directly as the tokenURI
+  // The contract stores this string on-chain
+  return imageUrl
+}
 
 export default function MintPage() {
   const { isConnected, address, chain } = useAccount()
+  const { switchChain } = useSwitchChain()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [imageUrl, setImageUrl] = useState('')
-  const [error, setError] = useState('')
+  const [localError, setLocalError] = useState('')
 
-  const { writeContract, data: hash, isPending, error: writeError } = useWriteContract()
+  const { writeContract, data: hash, isPending, error: writeError, reset: resetWrite } = useWriteContract()
   
   const { isLoading: isConfirming, isSuccess: isConfirmed, data: receipt } = useWaitForTransactionReceipt({
     hash,
   })
 
-  const isWrongNetwork = chain?.id !== SEPOLIA_CHAIN_ID
-  const canMint = isConnected && !isWrongNetwork && NFT_CONTRACT_ADDRESS && name && imageUrl
+  // Derived state
+  const isWrongNetwork = isConnected && chain?.id !== SEPOLIA_CHAIN_ID
+  const hasContractAddress = Boolean(NFT_CONTRACT_ADDRESS && NFT_CONTRACT_ADDRESS.length > 0)
+  const isValidImageUrl = isValidUrl(imageUrl)
+  
+  // Can mint only if all conditions are met
+  const canMint = isConnected && 
+                  !isWrongNetwork && 
+                  hasContractAddress && 
+                  imageUrl.trim().length > 0 &&
+                  isValidImageUrl
+
+  // Clear local error when form changes
+  useEffect(() => {
+    if (localError) setLocalError('')
+  }, [imageUrl])
 
   const handleMint = async () => {
-    if (!canMint) return
-    setError('')
+    // Clear previous errors
+    setLocalError('')
+    resetWrite?.()
+
+    // Validation
+    if (!isConnected) {
+      setLocalError('Please connect your wallet first')
+      return
+    }
+
+    if (isWrongNetwork) {
+      setLocalError('Please switch to Sepolia network')
+      return
+    }
+
+    if (!hasContractAddress) {
+      setLocalError('NFT contract address is not configured. Please set NEXT_PUBLIC_NFT_CONTRACT_ADDRESS.')
+      return
+    }
+
+    if (!imageUrl.trim()) {
+      setLocalError('Please enter an image URL')
+      return
+    }
+
+    if (!isValidImageUrl) {
+      setLocalError('Please enter a valid image URL (must start with http:// or https://)')
+      return
+    }
 
     try {
-      const tokenURI = createTokenURI(name, description, imageUrl)
+      // Create the tokenURI - using image URL directly for simplicity
+      const tokenURI = createSimpleTokenURI(imageUrl.trim())
       
+      console.log('Minting NFT with tokenURI:', tokenURI)
+      console.log('Contract address:', NFT_CONTRACT_ADDRESS)
+      
+      // Call the contract - mint takes exactly ONE string argument
       writeContract({
         address: NFT_CONTRACT_ADDRESS,
         abi: NOVATOK_NFT_ABI,
         functionName: 'mint',
-        args: [tokenURI],
+        args: [tokenURI], // Single string argument
       })
     } catch (err) {
-      setError(err.message || 'Failed to mint NFT')
+      console.error('Mint error:', err)
+      setLocalError(err?.message || 'Failed to initiate mint transaction')
     }
+  }
+
+  const handleSwitchNetwork = () => {
+    switchChain?.({ chainId: SEPOLIA_CHAIN_ID })
   }
 
   const resetForm = () => {
     setName('')
     setDescription('')
     setImageUrl('')
-    setError('')
+    setLocalError('')
+    resetWrite?.()
   }
 
   // Extract tokenId from logs if available
-  const mintedTokenId = receipt?.logs?.[0]?.topics?.[3] 
-    ? parseInt(receipt.logs[0].topics[3], 16)
+  // The NFTMinted event has tokenId as the second indexed parameter (topics[2])
+  const mintedTokenId = receipt?.logs?.[0]?.topics?.[2] 
+    ? parseInt(receipt.logs[0].topics[2], 16)
     : null
+
+  // Combine errors for display
+  const displayError = localError || 
+    (writeError?.shortMessage) || 
+    (writeError?.message) || 
+    ''
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -71,11 +147,51 @@ export default function MintPage() {
           <h1 className="text-4xl font-bold text-white mb-2">Mint NFT</h1>
           <p className="text-white/60 mb-8">Create your unique NFT on Sepolia testnet</p>
 
-          {!NFT_CONTRACT_ADDRESS && (
-            <ErrorBanner
-              title="Contract Not Configured"
-              message="NFT contract address is not set. Please deploy the contract and set NEXT_PUBLIC_NFT_CONTRACT_ADDRESS in your environment."
-            />
+          {/* Contract Not Configured Warning */}
+          {!hasContractAddress && (
+            <Card className="bg-orange-500/10 border-orange-500/30 mb-6">
+              <CardContent className="py-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-orange-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-orange-300">Contract Not Configured</h4>
+                    <p className="text-sm text-orange-200/80 mt-1">
+                      NFT contract address is not set. Please deploy the contract and set 
+                      <code className="mx-1 px-1 py-0.5 bg-orange-500/20 rounded text-xs">
+                        NEXT_PUBLIC_NFT_CONTRACT_ADDRESS
+                      </code>
+                      in your environment variables.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Wrong Network Warning */}
+          {isWrongNetwork && (
+            <Card className="bg-yellow-500/10 border-yellow-500/30 mb-6">
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                    <div>
+                      <h4 className="font-medium text-yellow-300">Wrong Network</h4>
+                      <p className="text-sm text-yellow-200/80">
+                        Please switch to Sepolia testnet to mint NFTs
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={handleSwitchNetwork}
+                    variant="outline" 
+                    className="border-yellow-500/50 text-yellow-300 hover:bg-yellow-500/20"
+                  >
+                    Switch Network
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {!isConnected ? (
@@ -133,18 +249,20 @@ export default function MintPage() {
               <CardContent className="space-y-6">
                 {/* Image Preview */}
                 <div className="aspect-video relative bg-white/5 rounded-lg overflow-hidden border border-white/10">
-                  {imageUrl ? (
+                  {imageUrl && isValidImageUrl ? (
                     <img
                       src={imageUrl}
                       alt="NFT Preview"
                       className="w-full h-full object-contain"
                       onError={(e) => {
                         e.target.style.display = 'none'
-                        e.target.nextSibling.style.display = 'flex'
+                        if (e.target.nextSibling) {
+                          e.target.nextSibling.style.display = 'flex'
+                        }
                       }}
                     />
                   ) : null}
-                  <div className={`absolute inset-0 flex flex-col items-center justify-center text-white/40 ${imageUrl ? 'hidden' : ''}`}>
+                  <div className={`absolute inset-0 flex flex-col items-center justify-center text-white/40 ${imageUrl && isValidImageUrl ? 'hidden' : ''}`}>
                     <ImageIcon className="h-12 w-12 mb-2" />
                     <span className="text-sm">Image Preview</span>
                   </div>
@@ -153,7 +271,7 @@ export default function MintPage() {
                 {/* Form Fields */}
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="name" className="text-white">Name *</Label>
+                    <Label htmlFor="name" className="text-white">Name (UI only)</Label>
                     <Input
                       id="name"
                       value={name}
@@ -161,10 +279,13 @@ export default function MintPage() {
                       placeholder="My Awesome NFT"
                       className="mt-1.5 bg-white/5 border-white/10 text-white placeholder:text-white/40"
                     />
+                    <p className="text-xs text-white/40 mt-1">
+                      For display purposes only - not stored on-chain
+                    </p>
                   </div>
 
                   <div>
-                    <Label htmlFor="description" className="text-white">Description</Label>
+                    <Label htmlFor="description" className="text-white">Description (UI only)</Label>
                     <Textarea
                       id="description"
                       value={description}
@@ -173,6 +294,9 @@ export default function MintPage() {
                       rows={3}
                       className="mt-1.5 bg-white/5 border-white/10 text-white placeholder:text-white/40"
                     />
+                    <p className="text-xs text-white/40 mt-1">
+                      For display purposes only - not stored on-chain
+                    </p>
                   </div>
 
                   <div>
@@ -182,19 +306,29 @@ export default function MintPage() {
                       value={imageUrl}
                       onChange={(e) => setImageUrl(e.target.value)}
                       placeholder="https://example.com/image.png"
-                      className="mt-1.5 bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                      className={`mt-1.5 bg-white/5 border-white/10 text-white placeholder:text-white/40 ${
+                        imageUrl && !isValidImageUrl ? 'border-red-500/50' : ''
+                      }`}
                     />
                     <p className="text-xs text-white/40 mt-1">
-                      Enter a direct link to your image (PNG, JPG, GIF, etc.)
+                      Enter a direct link to your image - this will be stored on-chain as the tokenURI
                     </p>
+                    {imageUrl && !isValidImageUrl && (
+                      <p className="text-xs text-red-400 mt-1">
+                        Please enter a valid URL starting with http:// or https://
+                      </p>
+                    )}
                   </div>
                 </div>
 
                 {/* Errors */}
-                {(error || writeError) && (
+                {displayError && (
                   <ErrorBanner
-                    message={error || writeError?.shortMessage || writeError?.message || 'Transaction failed'}
-                    onDismiss={() => setError('')}
+                    message={displayError}
+                    onDismiss={() => {
+                      setLocalError('')
+                      resetWrite?.()
+                    }}
                   />
                 )}
 
@@ -202,7 +336,7 @@ export default function MintPage() {
                 <Button
                   onClick={handleMint}
                   disabled={!canMint || isPending || isConfirming}
-                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50"
                 >
                   {isPending || isConfirming ? (
                     <>
@@ -213,6 +347,13 @@ export default function MintPage() {
                     'Mint NFT'
                   )}
                 </Button>
+
+                {/* Help text */}
+                {!canMint && isConnected && !isWrongNetwork && hasContractAddress && (
+                  <p className="text-center text-sm text-white/40">
+                    Please enter a valid image URL to enable minting
+                  </p>
+                )}
 
                 {/* Transaction Hash */}
                 {hash && !isConfirmed && (
