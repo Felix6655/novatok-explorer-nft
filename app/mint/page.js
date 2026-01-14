@@ -242,11 +242,8 @@ export default function MintPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // Extract tokenId from logs if available
-  // The NFTMinted event has tokenId as the second indexed parameter (topics[2])
-  const mintedTokenId = receipt?.logs?.[0]?.topics?.[2] 
-    ? parseInt(receipt.logs[0].topics[2], 16)
-    : null
+  // Extract tokenId from logs using robust utility function
+  const mintedTokenId = extractTokenIdFromReceipt(receipt, NFT_CONTRACT_ADDRESS)
 
   // Build user-friendly error message from wagmi/viem error
   const getUserFriendlyError = (error) => {
