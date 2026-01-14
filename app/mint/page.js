@@ -11,25 +11,89 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { NOVATOK_NFT_ABI, NFT_CONTRACT_ADDRESS, SEPOLIA_CHAIN_ID } from '@/lib/contractConfig'
-import { Loader2, CheckCircle, ExternalLink, ImageIcon, AlertTriangle } from 'lucide-react'
+import { Loader2, CheckCircle, ExternalLink, ImageIcon, AlertTriangle, Bug } from 'lucide-react'
 import Link from 'next/link'
 import { isAddress } from 'viem'
 
-// Helper to validate URL
-function isValidUrl(string) {
+// Environment variables (standardized names)
+const ENV = {
+  NFT_CONTRACT_ADDRESS: process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS || '',
+  CHAIN_ID: parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '11155111', 10),
+  WALLETCONNECT_PROJECT_ID: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '',
+}
+
+// Helper to validate URL - must be http or https
+function isValidHttpUrl(string) {
+  if (!string || typeof string !== 'string') return false
   try {
-    const url = new URL(string)
+    const url = new URL(string.trim())
     return url.protocol === 'http:' || url.protocol === 'https:'
   } catch {
     return false
   }
 }
 
-// Helper to create a simple tokenURI - just the image URL for now
-function createSimpleTokenURI(imageUrl) {
-  // For simplicity, just return the image URL directly as the tokenURI
-  // The contract stores this string on-chain
-  return imageUrl
+// Debug panel component
+function DebugPanel({ chainId, expectedChainId, contractAddress, hasWalletConnect }) {
+  const [isOpen, setIsOpen] = useState(false)
+  
+  const isValidContract = contractAddress && isAddress(contractAddress)
+  
+  return (
+    <div className="fixed bottom-4 right-4 z-50">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setIsOpen(!isOpen)}
+        className="bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700"
+      >
+        <Bug className="h-4 w-4 mr-1" />
+        Debug
+      </Button>
+      
+      {isOpen && (
+        <Card className="absolute bottom-12 right-0 w-80 bg-slate-800 border-slate-600 shadow-xl">
+          <CardHeader className="py-3 px-4">
+            <CardTitle className="text-sm text-slate-200">Mint Debug Info</CardTitle>
+          </CardHeader>
+          <CardContent className="py-2 px-4 space-y-2 text-xs font-mono">
+            <div className="flex justify-between">
+              <span className="text-slate-400">Connected Chain:</span>
+              <span className={chainId === expectedChainId ? 'text-green-400' : 'text-red-400'}>
+                {chainId || 'Not connected'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">Expected Chain:</span>
+              <span className="text-slate-200">{expectedChainId} (Sepolia)</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">Contract Address:</span>
+              <span className={isValidContract ? 'text-green-400' : 'text-red-400'}>
+                {contractAddress ? `${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}` : 'NOT SET'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">Valid Address:</span>
+              <span className={isValidContract ? 'text-green-400' : 'text-red-400'}>
+                {isValidContract ? 'Yes' : 'No'}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">WalletConnect:</span>
+              <span className={hasWalletConnect ? 'text-green-400' : 'text-yellow-400'}>
+                {hasWalletConnect ? 'Configured' : 'Not configured'}
+              </span>
+            </div>
+            <div className="pt-2 border-t border-slate-600 text-slate-500">
+              <p>Mint signature: mint(string _tokenURI)</p>
+              <p>Args: [imageUrl]</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
 }
 
 export default function MintPage() {
@@ -46,12 +110,12 @@ export default function MintPage() {
     hash,
   })
 
-  // Derived state
+  // Derived state using viem's isAddress for validation
   const isWrongNetwork = isConnected && chain?.id !== SEPOLIA_CHAIN_ID
-  const hasValidContractAddress = NFT_CONTRACT_ADDRESS && isAddress(NFT_CONTRACT_ADDRESS)
-  const isValidImageUrl = isValidUrl(imageUrl)
+  const hasValidContractAddress = Boolean(NFT_CONTRACT_ADDRESS && isAddress(NFT_CONTRACT_ADDRESS))
+  const isValidImageUrl = isValidHttpUrl(imageUrl)
   
-  // Can mint only if all conditions are met
+  // Can mint only if ALL conditions are met
   const canMint = isConnected && 
                   !isWrongNetwork && 
                   hasValidContractAddress && 
@@ -69,19 +133,24 @@ export default function MintPage() {
     setLocalError('')
     resetWrite?.()
 
-    // Validation
+    // Validation with specific error messages
     if (!isConnected) {
       setLocalError('Please connect your wallet first')
       return
     }
 
     if (isWrongNetwork) {
-      setLocalError('Please switch to Sepolia network')
+      setLocalError(`Wrong network. Please switch to Sepolia (Chain ID: ${SEPOLIA_CHAIN_ID}). Current: ${chain?.id}`)
       return
     }
 
-    if (!hasValidContractAddress) {
-      setLocalError('NFT contract address is not configured or invalid. Please set a valid NEXT_PUBLIC_NFT_CONTRACT_ADDRESS.')
+    if (!NFT_CONTRACT_ADDRESS) {
+      setLocalError('NFT contract address is not set. Please set NEXT_PUBLIC_NFT_CONTRACT_ADDRESS in your .env file.')
+      return
+    }
+
+    if (!isAddress(NFT_CONTRACT_ADDRESS)) {
+      setLocalError(`Invalid contract address format: "${NFT_CONTRACT_ADDRESS}". Must be a valid Ethereum address (0x + 40 hex chars).`)
       return
     }
 
@@ -91,26 +160,29 @@ export default function MintPage() {
     }
 
     if (!isValidImageUrl) {
-      setLocalError('Please enter a valid image URL (must start with http:// or https://)')
+      setLocalError('Invalid image URL. Must be a valid http:// or https:// URL.')
       return
     }
 
     try {
-      // Create the tokenURI - using image URL directly for simplicity
-      const tokenURI = createSimpleTokenURI(imageUrl.trim())
+      // tokenURI is the raw image URL string - exactly what the contract expects
+      const tokenURI = imageUrl.trim()
       
-      console.log('Minting NFT with tokenURI:', tokenURI)
-      console.log('Contract address:', NFT_CONTRACT_ADDRESS)
+      console.log('[Mint] Starting mint transaction')
+      console.log('[Mint] Contract:', NFT_CONTRACT_ADDRESS)
+      console.log('[Mint] tokenURI:', tokenURI)
+      console.log('[Mint] Function: mint(string)')
+      console.log('[Mint] Args:', [tokenURI])
       
-      // Call the contract - mint takes exactly ONE string argument
+      // Call the contract - mint(string _tokenURI) takes exactly ONE string argument
       writeContract({
         address: NFT_CONTRACT_ADDRESS,
         abi: NOVATOK_NFT_ABI,
         functionName: 'mint',
-        args: [tokenURI], // Single string argument
+        args: [tokenURI], // Single string argument - the image URL
       })
     } catch (err) {
-      console.error('Mint error:', err)
+      console.error('[Mint] Error:', err)
       setLocalError(err?.message || 'Failed to initiate mint transaction')
     }
   }
@@ -133,16 +205,35 @@ export default function MintPage() {
     ? parseInt(receipt.logs[0].topics[2], 16)
     : null
 
-  // Combine errors for display
-  const displayError = localError || 
-    (writeError?.shortMessage) || 
-    (writeError?.message) || 
-    ''
+  // Build detailed error message from wagmi/viem error
+  const getDetailedError = (error) => {
+    if (!error) return ''
+    
+    // Try to extract the most useful error message
+    if (error.shortMessage) return error.shortMessage
+    if (error.details) return error.details
+    if (error.cause?.shortMessage) return error.cause.shortMessage
+    if (error.cause?.message) return error.cause.message
+    if (error.message) return error.message
+    
+    return 'Transaction failed. Check console for details.'
+  }
+
+  // Combine errors for display - show full error details
+  const displayError = localError || getDetailedError(writeError)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       <NetworkBanner />
       <Header />
+
+      {/* Debug Panel */}
+      <DebugPanel
+        chainId={chain?.id}
+        expectedChainId={SEPOLIA_CHAIN_ID}
+        contractAddress={ENV.NFT_CONTRACT_ADDRESS}
+        hasWalletConnect={Boolean(ENV.WALLETCONNECT_PROJECT_ID)}
+      />
 
       <main className="container mx-auto px-4 py-12">
         <div className="max-w-2xl mx-auto">
@@ -158,11 +249,22 @@ export default function MintPage() {
                   <div>
                     <h4 className="font-medium text-orange-300">Contract Not Configured</h4>
                     <p className="text-sm text-orange-200/80 mt-1">
-                      NFT contract address is not set. Please deploy the contract and set 
-                      <code className="mx-1 px-1 py-0.5 bg-orange-500/20 rounded text-xs">
-                        NEXT_PUBLIC_NFT_CONTRACT_ADDRESS
-                      </code>
-                      in your environment variables.
+                      {!NFT_CONTRACT_ADDRESS ? (
+                        <>
+                          NFT contract address is not set. Please deploy the contract and add{' '}
+                          <code className="px-1 py-0.5 bg-orange-500/20 rounded text-xs">
+                            NEXT_PUBLIC_NFT_CONTRACT_ADDRESS=0x...
+                          </code>{' '}
+                          to your .env file.
+                        </>
+                      ) : (
+                        <>
+                          Invalid contract address format:{' '}
+                          <code className="px-1 py-0.5 bg-orange-500/20 rounded text-xs break-all">
+                            {NFT_CONTRACT_ADDRESS}
+                          </code>
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -180,7 +282,7 @@ export default function MintPage() {
                     <div>
                       <h4 className="font-medium text-yellow-300">Wrong Network</h4>
                       <p className="text-sm text-yellow-200/80">
-                        Please switch to Sepolia testnet to mint NFTs
+                        Connected to chain {chain?.id}. Please switch to Sepolia ({SEPOLIA_CHAIN_ID}).
                       </p>
                     </div>
                   </div>
@@ -189,7 +291,7 @@ export default function MintPage() {
                     variant="outline" 
                     className="border-yellow-500/50 text-yellow-300 hover:bg-yellow-500/20"
                   >
-                    Switch Network
+                    Switch to Sepolia
                   </Button>
                 </div>
               </CardContent>
@@ -302,7 +404,7 @@ export default function MintPage() {
                   </div>
 
                   <div>
-                    <Label htmlFor="imageUrl" className="text-white">Image URL *</Label>
+                    <Label htmlFor="imageUrl" className="text-white">Image URL * (stored on-chain)</Label>
                     <Input
                       id="imageUrl"
                       value={imageUrl}
@@ -313,7 +415,7 @@ export default function MintPage() {
                       }`}
                     />
                     <p className="text-xs text-white/40 mt-1">
-                      Enter a direct link to your image - this will be stored on-chain as the tokenURI
+                      Direct link to your image (http/https) - this becomes the tokenURI
                     </p>
                     {imageUrl && !isValidImageUrl && (
                       <p className="text-xs text-red-400 mt-1">
@@ -323,7 +425,7 @@ export default function MintPage() {
                   </div>
                 </div>
 
-                {/* Errors */}
+                {/* Errors - show full error message */}
                 {displayError && (
                   <ErrorBanner
                     message={displayError}
