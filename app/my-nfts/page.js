@@ -142,7 +142,7 @@ function ScanStatus({ isScanning, progress, blocksScanned, nftsFound, hasMore, o
         
         {!isScanning && hasMore && (
           <p className="text-xs text-white/40 text-center">
-            Click "Load More" to scan older blocks for additional NFTs
+            Click &quot;Load More&quot; to scan older blocks for additional NFTs
           </p>
         )}
       </CardContent>
