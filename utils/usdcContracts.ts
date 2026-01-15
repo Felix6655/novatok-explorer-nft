@@ -1,9 +1,10 @@
-const usdcContracts: Record<number, { address: string }> = {
-  1: { address: "" },
-  137: { address: "" },
-  42161: { address: "" },
-  10: { address: "" },
-  8453: { address: "" },
+const usdcContracts: Record<number, string> = {
+  1: "",
+  137: "",
+  42161: "",
+  10: "",
+  8453: "",
+  56: "",
 };
 
 export default usdcContracts;
