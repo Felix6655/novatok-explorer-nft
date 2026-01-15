@@ -65,16 +65,17 @@ const DropdownMenuItem = styled(DropdownMenuPrimitive.DropdownMenuItem, {
 type Props = {
   trigger: ReactNode
   contentProps?: DropdownMenuPrimitive.DropdownMenuContentProps
+  modal?: boolean
 }
 
 const Dropdown = forwardRef<
-  ElementRef<typeof DropdownMenuPrimitive.Root>,
-  ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Root> & Props
->(({ children, trigger, contentProps, ...props }, forwardedRef) => {
+  ElementRef<typeof DropdownMenuPrimitive.Content>,
+  ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content> & Props
+>(({ children, trigger, contentProps, modal, ...props }, forwardedRef) => {
   const [open, setOpen] = useState(false)
 
   return (
-    <DropdownMenuPrimitive.Root {...props} open={open} onOpenChange={setOpen}>
+    <DropdownMenuPrimitive.Root modal={modal} open={open} onOpenChange={setOpen}>
       <DropdownMenuPrimitive.Trigger asChild>
         {trigger}
       </DropdownMenuPrimitive.Trigger>
