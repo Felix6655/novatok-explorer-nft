@@ -1,8 +1,3 @@
-export { Root as Dialog } from "@radix-ui/react-dialog";
-export { Root as Dialog } from "@radix-ui/react-dialog";
-// ...existing code...
-export { Content, Overlay };
-// ...existing code...
 import { styled } from '@stitches/react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import {
@@ -38,8 +33,9 @@ const AnimatedOverlay = forwardRef<
   </Overlay>
 ))
 
+AnimatedOverlay.displayName = 'AnimatedOverlay'
+
 const Content = styled(DialogPrimitive.Content, {
-  export { Content, Overlay };
   backgroundColor: '$neutralBg',
   borderRadius: 8,
   $$shadowColor: '$colors$gray7',
@@ -58,9 +54,9 @@ const Content = styled(DialogPrimitive.Content, {
 })
 
 const AnimatedContent = forwardRef<
-  ElementRef<typeof DialogPrimitive.DialogContent>,
-  ComponentPropsWithoutRef<typeof DialogPrimitive.DialogContent>
-({ children, ...props }, forwardedRef) => {
+  ElementRef<typeof DialogPrimitive.Content>,
+  ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
+>(({ children, ...props }, forwardedRef) => {
   return (
     <DialogPrimitive.Content ref={forwardedRef} forceMount {...props}>
       <motion.div
@@ -72,15 +68,17 @@ const AnimatedContent = forwardRef<
         {children}
       </motion.div>
     </DialogPrimitive.Content>
-  );
-}
+  )
+})
+
+AnimatedContent.displayName = 'AnimatedContent'
 
 type Props = {
   trigger?: ReactNode
-  portalProps?: DialogPrimitive.PortalProps
-  overlayProps?: DialogPrimitive.DialogOverlayProps
+  portalProps?: ComponentPropsWithoutRef<typeof DialogPrimitive.Portal>
+  overlayProps?: ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
   open?: ComponentPropsWithoutRef<typeof DialogPrimitive.Root>['open']
-  onOpenChange: ComponentPropsWithoutRef<
+  onOpenChange?: ComponentPropsWithoutRef<
     typeof DialogPrimitive.Root
   >['onOpenChange']
 }
@@ -106,21 +104,21 @@ const Dialog = forwardRef<
     return (
       <DialogPrimitive.Root
         onOpenChange={onOpenChange || _onOpenChange}
-        open={open || _open}
+        open={open !== undefined ? open : _open}
       >
         {trigger && (
-          <DialogPrimitive.DialogTrigger asChild>
+          <DialogPrimitive.Trigger asChild>
             {trigger}
-          </DialogPrimitive.DialogTrigger>
+          </DialogPrimitive.Trigger>
         )}
         <AnimatePresence>
-          {open && (
-            <DialogPrimitive.DialogPortal forceMount {...portalProps}>
+          {(open !== undefined ? open : _open) && (
+            <DialogPrimitive.Portal forceMount {...portalProps}>
               <AnimatedOverlay style={{ opacity: 1 }} {...overlayProps} />
-              <AnimatedContent ref={forwardedRef} {...props} forceMount>
+              <AnimatedContent ref={forwardedRef} {...props}>
                 {children}
               </AnimatedContent>
-            </DialogPrimitive.DialogPortal>
+            </DialogPrimitive.Portal>
           )}
         </AnimatePresence>
       </DialogPrimitive.Root>
@@ -128,6 +126,6 @@ const Dialog = forwardRef<
   }
 )
 
-export { Dialog, AnimatedContent, AnimatedOverlay }
-export { Content, Overlay }
-export { Root as Dialog } from "@radix-ui/react-dialog";
+Dialog.displayName = 'Dialog'
+
+export { Dialog, AnimatedContent, AnimatedOverlay, Content, Overlay }
