@@ -94,8 +94,9 @@ const CollectionPage: NextPage<Props> = ({ id, ssr }) => {
   const [playingElement, setPlayingElement] = useState<
     HTMLAudioElement | HTMLVideoElement | null
   >()
-  const loadMoreRef = useRef<HTMLDivElement>(null)
-  const loadMoreObserver = useIntersectionObserver(loadMoreRef, {})
+  const { ref: loadMoreRef, isIntersecting: isLoadMoreIntersecting } = useIntersectionObserver({
+    threshold: 0,
+  })
   const [path, _] = router.asPath.split('?')
   const routerPath = path.split('/')
   const isSweepRoute = routerPath[routerPath.length - 1] === 'sweep'
