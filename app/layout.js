@@ -1,11 +1,7 @@
-import './styles/globals.css';
+'use client';
+
 import NetworkBadge from './components/NetworkBadge';
 import WrongNetworkBanner from './components/WrongNetworkBanner';
-
-export const metadata = {
-  title: 'NovatoK NFT Explorer',
-  description: 'Mint and explore NFTs on the blockchain',
-};
 
 export default function RootLayout({ children }) {
   return (
