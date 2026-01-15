@@ -13,6 +13,8 @@ import {
   IconDefinition,
 } from '@fortawesome/free-solid-svg-icons'
 
+type ArrayItemTypes<T> = T extends (infer U)[] ? U : never
+
 type ActivityTypes = Exclude<
   NonNullable<
     NonNullable<
