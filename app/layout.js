@@ -1,4 +1,4 @@
-import '../styles/globals.css';
+import './styles/globals.css';
 import NetworkBadge from '../components/NetworkBadge';
 import WrongNetworkBanner from '../components/WrongNetworkBanner';
 
