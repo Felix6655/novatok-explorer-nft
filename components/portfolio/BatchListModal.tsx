@@ -120,7 +120,7 @@ const BatchListModal: FC<Props> = ({ listings, disabled, onCloseComplete }) => {
         expirationTime = dayjs()
           .add(
             listing.expirationOption.relativeTime,
-            listing.expirationOption.relativeTimeUnit
+            listing.expirationOption.relativeTimeUnit as any
           )
           .unix()
           .toString()
