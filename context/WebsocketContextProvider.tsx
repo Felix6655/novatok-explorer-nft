@@ -6,6 +6,13 @@ import React, {
   PropsWithChildren,
 } from 'react'
 
+type ReservoirWebsocketEventFilters = 'contract' | 'source' | 'taker' | 'maker'
+
+type ReservoirWebsocketMessage = {
+  event: string
+  filters?: Partial<Record<ReservoirWebsocketEventFilters, string>>
+}
+
 type WebsocketStore = {
   subscriptions: Record<number, Record<string, number>>
 }
