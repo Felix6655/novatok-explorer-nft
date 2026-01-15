@@ -3,7 +3,6 @@ import React, {
   forwardRef,
   ReactNode,
 } from 'react'
-import type * as DialogPrimitive from '@radix-ui/react-dialog'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faClose, faChevronLeft } from '@fortawesome/free-solid-svg-icons'
