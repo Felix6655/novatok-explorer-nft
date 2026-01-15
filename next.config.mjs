@@ -13,9 +13,6 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  sentry: {
-    hideSourceMaps: false,
-  },
   async rewrites() {
     return [
       {
