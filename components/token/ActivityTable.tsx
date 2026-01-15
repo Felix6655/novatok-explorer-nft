@@ -89,17 +89,17 @@ export const TokenActivityTable: FC<TokenActivityTableProps> = ({
 }
 
 export const ActivityTable: FC<Props> = ({ data }) => {
-  const loadMoreRef = useRef<HTMLDivElement>(null)
-  const loadMoreObserver = useIntersectionObserver(loadMoreRef, {})
+  const { ref: loadMoreRef, isIntersecting } = useIntersectionObserver({
+    threshold: 0,
+  })
 
   const activities = data.data
 
   useEffect(() => {
-    const isVisible = !!loadMoreObserver?.isIntersecting
-    if (isVisible) {
+    if (isIntersecting) {
       data.fetchNextPage()
     }
-  }, [loadMoreObserver?.isIntersecting])
+  }, [isIntersecting])
 
   return (
     <>
