@@ -55,20 +55,20 @@ contract NovatoKNFT is ERC721, ERC721URIStorage, ERC2981, Ownable {
 
     /**
      * @dev Mint a new NFT with custom royalty settings
-     * @param tokenURI The metadata URI for the token
+     * @param tokenURI_ The metadata URI for the token
      * @param royaltyReceiver The address to receive royalties for this specific token
      * @param royaltyBps Royalty percentage in basis points for this token
      * @return tokenId The ID of the newly minted token
      */
     function mintWithRoyalty(
-        string memory tokenURI,
+        string memory tokenURI_,
         address royaltyReceiver,
         uint96 royaltyBps
     ) public returns (uint256) {
         _tokenIdCounter.increment();
         uint256 tokenId = _tokenIdCounter.current();
         _safeMint(msg.sender, tokenId);
-        _setTokenURI(tokenId, tokenURI);
+        _setTokenURI(tokenId, tokenURI_);
         
         // Set token-specific royalty if provided
         if (royaltyReceiver != address(0) && royaltyBps > 0) {
