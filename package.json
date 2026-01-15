@@ -41,8 +41,8 @@
     "react-use-websocket": "^4.13.0",
     "react-window": "1.8.7",
     "usehooks-ts": "^3.1.1",
-    "viem": "~2.22.8",
-    "wagmi": "~2.14.7"
+    "viem": "2.17.0",
+    "wagmi": "2.12.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.8",
