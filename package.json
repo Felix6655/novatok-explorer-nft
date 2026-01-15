@@ -23,7 +23,7 @@
     "@radix-ui/react-popover": "^1.1.15",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-toast": "^1.2.15",
-    "@rainbow-me/rainbowkit": "^2.2.10",
+    "@rainbow-me/rainbowkit": "2.1.7",
     "@reservoir0x/reservoir-kit-ui": "2.8.7",
     "@reservoir0x/reservoir-sdk": "^2.5.7",
     "@sentry/nextjs": "^10.32.1",
