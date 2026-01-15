@@ -7,6 +7,13 @@ import chains, { DefaultChain } from 'utils/chains'
 import validateEvent from 'utils/validateEvent'
 import { NORMALIZE_ROYALTIES } from 'pages/_app'
 
+type ReservoirWebsocketIncomingEvent = {
+  event: string
+  tags: Record<string, string>
+  data: Record<string, any>
+  status: string
+}
+
 export default (contract: string, chainId?: number, options: Options = {}) => {
   const client = useReservoirClient()
   const activeChain =
