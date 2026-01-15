@@ -2,8 +2,9 @@ import Link from 'next/link'
 import { Flex, Text } from './primitives'
 import { useIsUnsupportedChain } from 'hooks'
 import { useTheme } from 'next-themes'
+import { ReactElement } from 'react'
 
-const UnsupportedChainBanner = (): JSX.Element => {
+const UnsupportedChainBanner = (): ReactElement => {
   const { unsupportedChain, isTestnetDeployment } = useIsUnsupportedChain()
 
   const { theme } = useTheme()
