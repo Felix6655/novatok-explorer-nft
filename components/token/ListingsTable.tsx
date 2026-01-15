@@ -38,8 +38,9 @@ export const ListingsTable: FC<Props> = ({
   is1155,
   isOwner,
 }) => {
-  const loadMoreRef = useRef<HTMLDivElement>(null)
-  const loadMoreObserver = useIntersectionObserver(loadMoreRef, {})
+  const { ref: loadMoreRef, isIntersecting } = useIntersectionObserver({
+    threshold: 0,
+  })
   const [userOnly, setUserOnly] = useState(false)
 
   let listingsQuery: Parameters<typeof useListings>['0'] = {
