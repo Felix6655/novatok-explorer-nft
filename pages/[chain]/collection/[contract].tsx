@@ -63,6 +63,8 @@ import useTokenUpdateStream from 'hooks/useTokenUpdateStream'
 import LiveState from 'components/common/LiveState'
 import { Address } from 'viem'
 
+type SocketState = null | 'connecting' | 'connected' | 'disconnected'
+
 type ActivityTypes = Exclude<
   NonNullable<
     NonNullable<
