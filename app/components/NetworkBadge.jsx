@@ -1,7 +1,37 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CHAIN_ID, isExpectedChain, getChainName, getExpectedChainName } from '../lib/config';
+
+// Get chain config from environment
+const CHAIN_ID = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '1', 10);
+
+const CHAIN_NAMES = {
+  1: 'Ethereum Mainnet',
+  5: 'Goerli Testnet',
+  11155111: 'Sepolia Testnet',
+  137: 'Polygon Mainnet',
+  80001: 'Polygon Mumbai',
+  42161: 'Arbitrum One',
+  421614: 'Arbitrum Sepolia',
+  10: 'Optimism',
+  8453: 'Base',
+  84532: 'Base Sepolia',
+};
+
+function isExpectedChain(chainId) {
+  const numericChainId = typeof chainId === 'string' 
+    ? parseInt(chainId, chainId.startsWith('0x') ? 16 : 10) 
+    : chainId;
+  return numericChainId === CHAIN_ID;
+}
+
+function getChainName(chainId) {
+  return CHAIN_NAMES[chainId] || `Chain ${chainId}`;
+}
+
+function getExpectedChainName() {
+  return getChainName(CHAIN_ID);
+}
 
 /**
  * Network Badge Component
@@ -20,7 +50,6 @@ export default function NetworkBadge() {
           setCurrentChainId(chainId);
           setIsCorrectNetwork(isExpectedChain(chainId));
         } catch (err) {
-          // Wallet not connected or error
           setCurrentChainId(null);
           setIsCorrectNetwork(false);
         }
@@ -29,7 +58,6 @@ export default function NetworkBadge() {
 
     checkNetwork();
 
-    // Listen for chain changes
     if (typeof window !== 'undefined' && window.ethereum) {
       const handleChainChanged = (chainIdHex) => {
         const chainId = parseInt(chainIdHex, 16);
