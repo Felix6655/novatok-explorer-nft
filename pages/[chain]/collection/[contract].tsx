@@ -65,6 +65,13 @@ import { Address } from 'viem'
 
 type SocketState = null | 'connecting' | 'connected' | 'disconnected'
 
+type ReservoirWebsocketIncomingEvent = {
+  event: string
+  tags: Record<string, string>
+  data: Record<string, any>
+  status: string
+}
+
 type ActivityTypes = Exclude<
   NonNullable<
     NonNullable<
