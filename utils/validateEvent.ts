@@ -1,3 +1,10 @@
+type ReservoirWebsocketIncomingEvent = {
+  event: string
+  tags: Record<string, string>
+  data: Record<string, any>
+  status: string
+}
+
 /**
  * # validateEvent
  * Validates an event that is recieved from the WebSocket
