@@ -14,6 +14,8 @@ import {
 import { FullscreenModal } from 'components/common/FullscreenModal'
 import { useCollectionActivity } from '@reservoir0x/reservoir-kit-ui'
 
+type ArrayItemTypes<T> = T extends (infer U)[] ? U : never
+
 type ActivityTypes = Exclude<
   NonNullable<
     NonNullable<
