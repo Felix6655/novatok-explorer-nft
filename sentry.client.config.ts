@@ -3,7 +3,6 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from '@sentry/nextjs'
-import { CaptureConsole as CaptureConsoleIntegration } from '@sentry/integrations'
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -22,8 +21,8 @@ Sentry.init({
 
   // You can remove this option if you're not planning to use the Sentry Session Replay feature:
   integrations: [
-    new Sentry.Replay(),
-    new CaptureConsoleIntegration({
+    Sentry.replayIntegration(),
+    Sentry.captureConsoleIntegration({
       // array of methods that should be captured
       // defaults to ['log', 'info', 'warn', 'error', 'debug', 'assert']
       levels: ['error'],
