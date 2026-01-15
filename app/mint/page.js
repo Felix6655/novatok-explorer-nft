@@ -1,8 +1,34 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CHAIN_ID, CONTRACT_ADDRESS, isExpectedChain, getExpectedChainName } from '../../lib/config';
-import { NFT_ABI } from '../../lib/contractABI';
+
+// Get config from environment
+const CHAIN_ID = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '1', 10);
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '';
+
+const CHAIN_NAMES = {
+  1: 'Ethereum Mainnet',
+  5: 'Goerli Testnet',
+  11155111: 'Sepolia Testnet',
+  137: 'Polygon Mainnet',
+  80001: 'Polygon Mumbai',
+  42161: 'Arbitrum One',
+  421614: 'Arbitrum Sepolia',
+  10: 'Optimism',
+  8453: 'Base',
+  84532: 'Base Sepolia',
+};
+
+function isExpectedChain(chainId) {
+  const numericChainId = typeof chainId === 'string' 
+    ? parseInt(chainId, chainId.startsWith('0x') ? 16 : 10) 
+    : chainId;
+  return numericChainId === CHAIN_ID;
+}
+
+function getExpectedChainName() {
+  return CHAIN_NAMES[CHAIN_ID] || `Chain ${CHAIN_ID}`;
+}
 
 /**
  * Mint Page - Allows users to mint NFTs with a custom tokenURI
@@ -17,7 +43,6 @@ export default function MintPage() {
   const [walletConnected, setWalletConnected] = useState(false);
   const [uriWarning, setUriWarning] = useState('');
 
-  // Check network on mount and on chain change
   useEffect(() => {
     const checkNetwork = async () => {
       if (typeof window !== 'undefined' && window.ethereum) {
@@ -54,14 +79,12 @@ export default function MintPage() {
     }
   }, []);
 
-  // Validate tokenURI when it changes
   useEffect(() => {
     if (!tokenURI) {
       setUriWarning('');
       return;
     }
 
-    // Validate URI format
     const isValidHttp = /^https?:\/\/.+/.test(tokenURI);
     const isValidIpfs = tokenURI.startsWith('ipfs://');
 
@@ -111,7 +134,6 @@ export default function MintPage() {
       return;
     }
 
-    // Validate tokenURI
     if (!tokenURI) {
       setError('Please enter a token URI');
       return;
@@ -140,34 +162,29 @@ export default function MintPage() {
         throw new Error('No wallet connected');
       }
 
-      // Encode the mint function call
-      const iface = {
-        encodeFunctionData: (name, args) => {
-          // Simple ABI encoding for mint(string)
-          const signature = 'mint(string)';
-          const selector = '0x' + Array.from(
-            new Uint8Array(
-              // keccak256 of signature
-              [0xd8, 0x5d, 0x3d, 0x27] // This is a simplified version
-            )
-          ).map(b => b.toString(16).padStart(2, '0')).join('');
-          
-          // For production, use ethers.js or viem for proper encoding
-          return selector;
-        }
-      };
+      // Encode mint(string tokenURI) function call
+      // Function selector for mint(string) = 0xd85d3d27
+      const encoder = new TextEncoder();
+      const tokenURIBytes = encoder.encode(tokenURI);
+      const paddedLength = Math.ceil(tokenURIBytes.length / 32) * 32;
+      
+      let data = '0xd85d3d27'; // mint(string) selector
+      data += '0000000000000000000000000000000000000000000000000000000000000020'; // offset to string data
+      data += tokenURIBytes.length.toString(16).padStart(64, '0'); // string length
+      
+      // Convert bytes to hex and pad
+      let hexStr = '';
+      for (let i = 0; i < tokenURIBytes.length; i++) {
+        hexStr += tokenURIBytes[i].toString(16).padStart(2, '0');
+      }
+      data += hexStr.padEnd(paddedLength * 2, '0');
 
-      // Using eth_sendTransaction for simplicity
-      // In production, use ethers.js or viem
       const txHash = await window.ethereum.request({
         method: 'eth_sendTransaction',
         params: [{
           from: accounts[0],
           to: CONTRACT_ADDRESS,
-          data: '0xd85d3d27' + // mint(string) selector
-            '0000000000000000000000000000000000000000000000000000000000000020' + // offset
-            tokenURI.length.toString(16).padStart(64, '0') + // length
-            Buffer.from(tokenURI).toString('hex').padEnd(Math.ceil(tokenURI.length / 32) * 64, '0'), // data
+          data: data,
         }],
       });
 
