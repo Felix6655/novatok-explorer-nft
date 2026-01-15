@@ -18,7 +18,7 @@ import {
 import { ChainContext } from 'context/ChainContextProvider'
 import { useENSResolver, useMarketplaceChain, useTimeSince } from 'hooks'
 import Link from 'next/link'
-import { FC, useContext, useEffect, useRef, useState } from 'react'
+import { FC, useContext, useEffect, useState } from 'react'
 import { MutatorCallback } from 'swr'
 import { useIntersectionObserver } from 'usehooks-ts'
 import { formatDollar, formatNumber } from 'utils/numbers'
