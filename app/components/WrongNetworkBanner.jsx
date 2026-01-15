@@ -1,7 +1,33 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CHAIN_ID, isExpectedChain, getExpectedChainName } from '../lib/config';
+
+// Get chain config from environment
+const CHAIN_ID = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '1', 10);
+
+const CHAIN_NAMES = {
+  1: 'Ethereum Mainnet',
+  5: 'Goerli Testnet',
+  11155111: 'Sepolia Testnet',
+  137: 'Polygon Mainnet',
+  80001: 'Polygon Mumbai',
+  42161: 'Arbitrum One',
+  421614: 'Arbitrum Sepolia',
+  10: 'Optimism',
+  8453: 'Base',
+  84532: 'Base Sepolia',
+};
+
+function isExpectedChain(chainId) {
+  const numericChainId = typeof chainId === 'string' 
+    ? parseInt(chainId, chainId.startsWith('0x') ? 16 : 10) 
+    : chainId;
+  return numericChainId === CHAIN_ID;
+}
+
+function getExpectedChainName() {
+  return CHAIN_NAMES[CHAIN_ID] || `Chain ${CHAIN_ID}`;
+}
 
 /**
  * Wrong Network Banner Component
@@ -43,16 +69,12 @@ export default function WrongNetworkBanner() {
 
     setIsSwitching(true);
     try {
-      // Try to switch to the expected chain
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: `0x${CHAIN_ID.toString(16)}` }],
       });
     } catch (switchError) {
-      // If the chain is not added, we might need to add it first
-      // Error code 4902 means the chain hasn't been added
       if (switchError.code === 4902) {
-        // Chain not added - user needs to add it manually or we can try wallet_addEthereumChain
         alert(`Please add ${getExpectedChainName()} to your wallet manually.`);
       }
     } finally {
