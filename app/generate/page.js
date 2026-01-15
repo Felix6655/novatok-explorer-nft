@@ -1,7 +1,34 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CHAIN_ID, CONTRACT_ADDRESS, isExpectedChain, getExpectedChainName } from '../../lib/config';
+
+// Get config from environment
+const CHAIN_ID = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '1', 10);
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '';
+
+const CHAIN_NAMES = {
+  1: 'Ethereum Mainnet',
+  5: 'Goerli Testnet',
+  11155111: 'Sepolia Testnet',
+  137: 'Polygon Mainnet',
+  80001: 'Polygon Mumbai',
+  42161: 'Arbitrum One',
+  421614: 'Arbitrum Sepolia',
+  10: 'Optimism',
+  8453: 'Base',
+  84532: 'Base Sepolia',
+};
+
+function isExpectedChain(chainId) {
+  const numericChainId = typeof chainId === 'string' 
+    ? parseInt(chainId, chainId.startsWith('0x') ? 16 : 10) 
+    : chainId;
+  return numericChainId === CHAIN_ID;
+}
+
+function getExpectedChainName() {
+  return CHAIN_NAMES[CHAIN_ID] || `Chain ${CHAIN_ID}`;
+}
 
 /**
  * Generate Page - Create metadata, upload to IPFS, and mint NFT
@@ -31,7 +58,6 @@ export default function GeneratePage() {
   const [walletConnected, setWalletConnected] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Check network on mount
   useEffect(() => {
     const checkNetwork = async () => {
       if (typeof window !== 'undefined' && window.ethereum) {
@@ -133,22 +159,16 @@ export default function GeneratePage() {
     setUploadError('');
 
     try {
-      // Convert image to base64
       const imageBase64 = imagePreview.split(',')[1];
-
-      // Filter out empty attributes
       const validAttributes = attributes.filter(
         (attr) => attr.trait_type && attr.value
       );
-
-      // Prepare metadata
       const metadata = {
         name,
         description,
         attributes: validAttributes,
       };
 
-      // Upload to IPFS via API route
       const response = await fetch('/api/ipfs/upload', {
         method: 'POST',
         headers: {
@@ -182,7 +202,6 @@ export default function GeneratePage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      // Fallback for older browsers
       const textArea = document.createElement('textarea');
       textArea.value = text;
       document.body.appendChild(textArea);
@@ -222,17 +241,27 @@ export default function GeneratePage() {
         throw new Error('No wallet connected');
       }
 
-      // Encode mint function call with metadataUri as tokenURI
       const tokenURI = metadataUri;
+      const encoder = new TextEncoder();
+      const tokenURIBytes = encoder.encode(tokenURI);
+      const paddedLength = Math.ceil(tokenURIBytes.length / 32) * 32;
+      
+      let data = '0xd85d3d27';
+      data += '0000000000000000000000000000000000000000000000000000000000000020';
+      data += tokenURIBytes.length.toString(16).padStart(64, '0');
+      
+      let hexStr = '';
+      for (let i = 0; i < tokenURIBytes.length; i++) {
+        hexStr += tokenURIBytes[i].toString(16).padStart(2, '0');
+      }
+      data += hexStr.padEnd(paddedLength * 2, '0');
+
       const txHash = await window.ethereum.request({
         method: 'eth_sendTransaction',
         params: [{
           from: accounts[0],
           to: CONTRACT_ADDRESS,
-          data: '0xd85d3d27' + // mint(string) selector
-            '0000000000000000000000000000000000000000000000000000000000000020' + // offset
-            tokenURI.length.toString(16).padStart(64, '0') + // length
-            Buffer.from(tokenURI).toString('hex').padEnd(Math.ceil(tokenURI.length / 32) * 64, '0'), // data
+          data: data,
         }],
       });
 
