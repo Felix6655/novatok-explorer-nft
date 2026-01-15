@@ -65,11 +65,10 @@ export const OffersTable: FC<Props> = ({ token, address, is1155, isOwner }) => {
   const userHasOffers = userOffers.length > 0
 
   useEffect(() => {
-    const isVisible = !!loadMoreObserver?.isIntersecting
-    if (isVisible) {
+    if (isIntersecting) {
       fetchNextPage()
     }
-  }, [loadMoreObserver?.isIntersecting])
+  }, [isIntersecting])
 
   return (
     <>
