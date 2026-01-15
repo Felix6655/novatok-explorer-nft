@@ -12,6 +12,7 @@ type ReservoirWebsocketMessage = {
   event: string
   filters?: Partial<Record<ReservoirWebsocketEventFilters, string>>
   changed?: string
+  type?: 'subscribe' | 'unsubscribe'
 }
 
 type WebsocketStore = {
