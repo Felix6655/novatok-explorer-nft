@@ -42,3 +42,4 @@ yarn-error.log*
 # Environment files
 *.env
 *.env.*
+hardhat/node_modules
