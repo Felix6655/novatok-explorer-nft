@@ -32,8 +32,9 @@ type Props = {
 }
 
 export const OffersTable: FC<Props> = ({ token, address, is1155, isOwner }) => {
-  const loadMoreRef = useRef<HTMLDivElement>(null)
-  const loadMoreObserver = useIntersectionObserver(loadMoreRef, {})
+  const { ref: loadMoreRef, isIntersecting } = useIntersectionObserver({
+    threshold: 0,
+  })
   const [userOnly, setUserOnly] = useState(false)
 
   let bidsQuery: Parameters<typeof useBids>['0'] = {
