@@ -158,7 +158,7 @@ export const TokenInfo: FC<Props> = ({ token, collection }) => {
         >
           <Flex direction="column" css={isExpanded ? undefined : expandedCss}>
             <Text ref={descriptionRef}>
-              <ReactMarkdown linkTarget="_blank">
+              <ReactMarkdown>
                 {collection?.description as string}
               </ReactMarkdown>
             </Text>
