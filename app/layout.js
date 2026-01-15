@@ -1,6 +1,6 @@
 import './styles/globals.css';
-import NetworkBadge from '../components/NetworkBadge';
-import WrongNetworkBanner from '../components/WrongNetworkBanner';
+import NetworkBadge from './components/NetworkBadge';
+import WrongNetworkBanner from './components/WrongNetworkBanner';
 
 export const metadata = {
   title: 'NovatoK NFT Explorer',
