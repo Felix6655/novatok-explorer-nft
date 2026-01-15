@@ -74,11 +74,10 @@ export const ListingsTable: FC<Props> = ({
   const userHasListings = userListings.length > 0
 
   useEffect(() => {
-    const isVisible = !!loadMoreObserver?.isIntersecting
-    if (isVisible) {
+    if (isIntersecting) {
       fetchNextPage()
     }
-  }, [loadMoreObserver?.isIntersecting])
+  }, [isIntersecting])
 
   return (
     <>
