@@ -327,13 +327,13 @@ const GeneratePage: NextPage = () => {
                   <Button
                     onClick={() => removeAttribute(index)}
                     size="small"
-                    color="gray"
+                    color="gray3"
                   >
                     ×
                   </Button>
                 </Flex>
               ))}
-              <Button onClick={addAttribute} size="small" color="gray">
+              <Button onClick={addAttribute} size="small" color="gray3">
                 + Add Attribute
               </Button>
             </Box>
