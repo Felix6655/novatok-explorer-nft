@@ -14,6 +14,13 @@ type ReservoirWebsocketIncomingEvent = {
   status: string
 }
 
+type ReservoirWebsocketMessage = {
+  type?: 'subscribe' | 'unsubscribe'
+  event: string
+  filters?: Record<string, string>
+  changed?: string
+}
+
 export default (contract: string, chainId?: number, options: Options = {}) => {
   const client = useReservoirClient()
   const activeChain =
