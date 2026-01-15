@@ -156,7 +156,7 @@ type ActivityTableRowProps = {
 }
 
 type Logos = {
-  [key: string]: JSX.Element
+  [key: string]: ReactElement
 }
 
 const logos: Logos = {
