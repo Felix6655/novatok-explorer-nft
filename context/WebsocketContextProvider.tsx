@@ -11,6 +11,7 @@ type ReservoirWebsocketEventFilters = 'contract' | 'source' | 'taker' | 'maker'
 type ReservoirWebsocketMessage = {
   event: string
   filters?: Partial<Record<ReservoirWebsocketEventFilters, string>>
+  changed?: string
 }
 
 type WebsocketStore = {
