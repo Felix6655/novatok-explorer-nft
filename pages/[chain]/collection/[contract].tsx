@@ -82,7 +82,7 @@ const CollectionPage: NextPage<Props> = ({ id, ssr }) => {
   const [tokenSearchQuery, setTokenSearchQuery] = useState<string>('')
   const chainCurrency = useChainCurrency()
   const client = useReservoirClient()
-  const debouncedSearch = useDebounce(tokenSearchQuery, 500)
+  const [debouncedSearch] = useDebounceValue(tokenSearchQuery, 500)
   const [socketState, setSocketState] = useState<SocketState>(null)
   const [activityTypes, setActivityTypes] = useState<ActivityTypes>([
     'sale',
