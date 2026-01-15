@@ -192,8 +192,8 @@ const CollectionPage: NextPage<Props> = ({ id, ssr }) => {
   })
 
   useTokenUpdateStream(id as string, collectionChain.id, {
-    onClose: () => setSocketState(0),
-    onOpen: () => setSocketState(1),
+    onClose: () => setSocketState('disconnected'),
+    onOpen: () => setSocketState('connected'),
     onMessage: ({
       data: reservoirEvent,
     }: MessageEvent<ReservoirWebsocketIncomingEvent>) => {
