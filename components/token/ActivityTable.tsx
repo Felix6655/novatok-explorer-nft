@@ -17,7 +17,7 @@ import {
 import LoadingSpinner from 'components/common/LoadingSpinner'
 import { useENSResolver, useMarketplaceChain, useTimeSince } from 'hooks'
 import Link from 'next/link'
-import { FC, useEffect, useRef } from 'react'
+import { FC, useEffect, ReactElement } from 'react'
 import { useMediaQuery } from 'react-responsive'
 import { useIntersectionObserver } from 'usehooks-ts'
 import {
