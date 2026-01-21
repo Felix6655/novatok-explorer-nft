@@ -36,11 +36,14 @@ The app is driven by these env vars:
 
 #### 2. Mint Page (`/mint`)
 - **Status**: ✅ IMPLEMENTED
-- Image file picker (PNG, JPG, GIF up to 5MB)
+- Image file picker (PNG, JPG, GIF up to 5MB) with click-to-upload
+- Uploads via `POST /api/ipfs/upload` using multipart/form-data
+- API returns base64 data URL (works on Vercel Node runtime)
 - Optional name and description fields
 - Auto-generates tokenURI as `data:application/json;base64,...` blob
-- No external IPFS service required
+- No external IPFS service required (Pinata optional)
 - Wrong network detection with "Switch Network" button
+- Upload progress indicator and clear error messages
 - Transaction hash displayed on success
 
 ### Navigation
