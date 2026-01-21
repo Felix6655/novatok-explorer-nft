@@ -227,6 +227,12 @@ const Navbar = () => {
               </HoverCard.Content>
             </HoverCard.Root>
           </Box>
+          <Link href="/my-nfts">
+            <NavItem>My NFTs</NavItem>
+          </Link>
+          <Link href="/mint">
+            <NavItem>Mint</NavItem>
+          </Link>
           {isConnected && (
             <Link href={`/portfolio/${address || ''}?chain=${routePrefix}`}>
               <Box css={{ mr: '$2' }}>
