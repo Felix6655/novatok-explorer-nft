@@ -35,16 +35,18 @@ The app is driven by these env vars:
 - Network badge shows current chain status
 
 #### 2. Mint Page (`/mint`)
-- **Status**: ✅ IMPLEMENTED
-- Image file picker (PNG, JPG, GIF up to 5MB) with click-to-upload
+- **Status**: ✅ IMPLEMENTED (Enhanced)
+- Image file picker (PNG, JPG, GIF, WebP up to 10MB) with click-to-upload
 - Uploads via `POST /api/ipfs/upload` using multipart/form-data
 - API returns base64 data URL (works on Vercel Node runtime)
-- Optional name and description fields
-- Auto-generates tokenURI as `data:application/json;base64,...` blob
-- No external IPFS service required (Pinata optional)
+- **NEW: Mint Readiness Panel** - Auto-analyzes file type, size, resolution, aspect ratio, metadata
+- **NEW: Marketplace Preview Simulator** - Toggle between Marketplace/Mobile/Dark views
+- **NEW: NovaTok Suggestions** - Collapsible panel with context-aware tips
+- **NEW: Attributes Editor** - Add up to 5 trait/value pairs
 - Wrong network detection with "Switch Network" button
 - Upload progress indicator and clear error messages
 - Transaction hash displayed on success
+- All warnings are non-blocking (mint always possible)
 
 ### Navigation
 - Desktop: "My NFTs" and "Mint" links added to navbar
