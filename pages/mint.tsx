@@ -367,7 +367,7 @@ const MintPage: NextPage = () => {
           </Box>
         )}
 
-        <Flex gap="3">
+        <Flex css={{ gap: '$3' }}>
           <Button
             onClick={handleMint}
             disabled={isButtonDisabled}
