@@ -306,7 +306,7 @@ const MyNFTsPage: NextPage = () => {
         {/* Connected - Show Scan UI */}
         {isConnected && !configError && (
           <>
-            <Flex align="center" gap="3" css={{ flexWrap: 'wrap' }}>
+            <Flex css={{ gap: '$3', flexWrap: 'wrap' }} align="center">
               <Button
                 onClick={scanBlockchain}
                 disabled={isScanning}
