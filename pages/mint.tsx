@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { NextPage } from 'next'
 import { Flex, Text, Box, Button, Input } from 'components/primitives'
 import Layout from 'components/Layout'
@@ -7,15 +7,31 @@ import { useAccount } from 'wagmi'
 import { CHAIN_ID, CONTRACT_ADDRESS, isExpectedChain, getExpectedChainName } from 'lib/config'
 import WrongNetworkBanner from 'components/common/WrongNetworkBanner'
 import NetworkBadge from 'components/common/NetworkBadge'
+import Link from 'next/link'
 
 const MintPage: NextPage = () => {
   const { address, isConnected } = useAccount()
-  const [tokenURI, setTokenURI] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // Form state
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string>('')
+  
+  // UI state
   const [isWrongNetwork, setIsWrongNetwork] = useState(false)
   const [isMinting, setIsMinting] = useState(false)
   const [mintResult, setMintResult] = useState<{ success: boolean; txHash?: string; message: string } | null>(null)
   const [error, setError] = useState('')
-  const [uriWarning, setUriWarning] = useState('')
+  const [configError, setConfigError] = useState('')
+
+  // Check configuration on mount
+  useEffect(() => {
+    if (!CONTRACT_ADDRESS) {
+      setConfigError('NEXT_PUBLIC_CONTRACT_ADDRESS is not set')
+    }
+  }, [])
 
   // Check network on mount and on chain change
   useEffect(() => {
@@ -44,25 +60,6 @@ const MintPage: NextPage = () => {
     }
   }, [])
 
-  // Validate tokenURI when it changes
-  useEffect(() => {
-    if (!tokenURI) {
-      setUriWarning('')
-      return
-    }
-
-    const isValidHttp = /^https?:\/\/.+/.test(tokenURI)
-    const isValidIpfs = tokenURI.startsWith('ipfs://')
-
-    if (!isValidHttp && !isValidIpfs) {
-      setUriWarning('Token URI must start with http://, https://, or ipfs://')
-    } else if (isValidHttp && !isValidIpfs) {
-      setUriWarning('Warning: HTTP(S) URIs are less permanent. Consider using ipfs:// for better decentralization.')
-    } else {
-      setUriWarning('')
-    }
-  }, [tokenURI])
-
   const switchNetwork = async () => {
     if (typeof window === 'undefined' || !window.ethereum) return
 
@@ -78,6 +75,53 @@ const MintPage: NextPage = () => {
     }
   }
 
+  // Handle file selection
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file (PNG, JPG, GIF, etc.)')
+      return
+    }
+
+    // Validate file size (max 5MB for base64)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image must be smaller than 5MB')
+      return
+    }
+
+    setImageFile(file)
+    setError('')
+
+    // Create preview
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setImagePreview(e.target?.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // Generate tokenURI as base64 data URL
+  const generateTokenURI = async (): Promise<string> => {
+    if (!imagePreview) {
+      throw new Error('No image selected')
+    }
+
+    const metadata = {
+      name: name || `NFT #${Date.now()}`,
+      description: description || 'Minted on NovatoK NFT Marketplace',
+      image: imagePreview, // Base64 data URL
+      attributes: [],
+    }
+
+    // Convert metadata to base64 data URL
+    const metadataJson = JSON.stringify(metadata)
+    const base64Metadata = btoa(unescape(encodeURIComponent(metadataJson)))
+    return `data:application/json;base64,${base64Metadata}`
+  }
+
   const handleMint = async () => {
     // Hard guard: Block if wrong network
     if (isWrongNetwork) {
@@ -85,16 +129,8 @@ const MintPage: NextPage = () => {
       return
     }
 
-    if (!tokenURI) {
-      setError('Please enter a token URI')
-      return
-    }
-
-    const isValidHttp = /^https?:\/\/.+/.test(tokenURI)
-    const isValidIpfs = tokenURI.startsWith('ipfs://')
-
-    if (!isValidHttp && !isValidIpfs) {
-      setError('Token URI must be a valid http(s):// or ipfs:// URL')
+    if (!imageFile || !imagePreview) {
+      setError('Please select an image')
       return
     }
 
@@ -112,6 +148,9 @@ const MintPage: NextPage = () => {
       if (!accounts || accounts.length === 0) {
         throw new Error('No wallet connected')
       }
+
+      // Generate tokenURI
+      const tokenURI = await generateTokenURI()
 
       // Encode mint(string tokenURI) function call
       const encoder = new TextEncoder()
@@ -140,8 +179,17 @@ const MintPage: NextPage = () => {
       setMintResult({
         success: true,
         txHash,
-        message: 'NFT minted successfully!',
+        message: 'NFT minted successfully! View it on My NFTs page.',
       })
+
+      // Reset form
+      setName('')
+      setDescription('')
+      setImageFile(null)
+      setImagePreview('')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to mint NFT')
     } finally {
@@ -149,7 +197,7 @@ const MintPage: NextPage = () => {
     }
   }
 
-  const isButtonDisabled = isWrongNetwork || !isConnected || isMinting || !tokenURI
+  const isButtonDisabled = isWrongNetwork || !isConnected || isMinting || !imageFile || !!configError
 
   return (
     <Layout>
@@ -157,65 +205,187 @@ const MintPage: NextPage = () => {
       <WrongNetworkBanner />
       <Flex direction="column" css={{ maxWidth: 600, mx: 'auto', p: '$4', gap: '$4' }}>
         <Flex justify="between" align="center">
-          <Text style="h4">Mint NFT</Text>
+          <Text style="h4" data-testid="mint-title">Mint NFT</Text>
           <NetworkBadge />
         </Flex>
         <Text style="body2" css={{ color: '$gray11' }}>
-          Mint a new NFT with a custom token URI
+          Upload an image and mint a new NFT on {getExpectedChainName()}
         </Text>
+
+        {/* Config Error */}
+        {configError && (
+          <Box
+            data-testid="config-error"
+            css={{
+              p: '$4',
+              background: '#fef2f2',
+              borderRadius: 8,
+              border: '1px solid #fca5a5',
+            }}
+          >
+            <Text style="subtitle2" css={{ color: '#991b1b', mb: '$2' }}>
+              ⚠️ Configuration Error
+            </Text>
+            <Text style="body2" css={{ color: '#991b1b' }}>
+              {configError}
+            </Text>
+          </Box>
+        )}
 
         {isWrongNetwork && isConnected && (
           <Box css={{ p: '$4', background: '#fef3c7', borderRadius: 8, border: '1px solid #f59e0b' }}>
             <Text style="body2" css={{ color: '#92400e', mb: '$2' }}>
               ⚠️ Wrong Network - Please switch to {getExpectedChainName()}
             </Text>
-            <Button onClick={switchNetwork} size="small">
+            <Button onClick={switchNetwork} size="small" data-testid="switch-network-btn">
               Switch Network
             </Button>
           </Box>
         )}
 
+        {/* Image Upload */}
         <Box>
-          <Text style="subtitle2" css={{ mb: '$2' }}>Token URI</Text>
+          <Text style="subtitle2" css={{ mb: '$2' }}>Image *</Text>
+          <Box
+            onClick={() => fileInputRef.current?.click()}
+            data-testid="image-upload-area"
+            css={{
+              border: '2px dashed $gray7',
+              borderRadius: 12,
+              p: '$4',
+              cursor: 'pointer',
+              textAlign: 'center',
+              transition: 'border-color 0.2s',
+              '&:hover': {
+                borderColor: '$primary9',
+              },
+            }}
+          >
+            {imagePreview ? (
+              <Box css={{ position: 'relative' }}>
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  data-testid="image-preview"
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: 300,
+                    borderRadius: 8,
+                    objectFit: 'contain',
+                  }}
+                />
+                <Text style="body3" css={{ color: '$gray10', mt: '$2' }}>
+                  Click to change image
+                </Text>
+              </Box>
+            ) : (
+              <Flex direction="column" align="center" gap="2">
+                <Text style="h6" css={{ color: '$gray10' }}>
+                  📁
+                </Text>
+                <Text style="body2" css={{ color: '$gray11' }}>
+                  Click to select an image
+                </Text>
+                <Text style="body3" css={{ color: '$gray10' }}>
+                  PNG, JPG, GIF up to 5MB
+                </Text>
+              </Flex>
+            )}
+          </Box>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
+            data-testid="file-input"
+          />
+        </Box>
+
+        {/* Name Input */}
+        <Box>
+          <Text style="subtitle2" css={{ mb: '$2' }}>Name (optional)</Text>
           <Input
-            value={tokenURI}
-            onChange={(e) => setTokenURI(e.target.value)}
-            placeholder="ipfs://... or https://..."
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="My Awesome NFT"
             disabled={isWrongNetwork}
             css={{ width: '100%' }}
+            data-testid="name-input"
           />
-          {uriWarning && (
-            <Text style="body3" css={{ mt: '$2', p: '$2', background: '#fef3c7', borderRadius: 6, color: '#92400e' }}>
-              {uriWarning}
-            </Text>
-          )}
-          <Text style="body3" css={{ mt: '$2', color: '$gray10' }}>
-            Enter the metadata URI for your NFT. IPFS URIs (ipfs://...) are recommended.
-          </Text>
+        </Box>
+
+        {/* Description Input */}
+        <Box>
+          <Text style="subtitle2" css={{ mb: '$2' }}>Description (optional)</Text>
+          <Box
+            as="textarea"
+            value={description}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
+            placeholder="Describe your NFT..."
+            disabled={isWrongNetwork}
+            data-testid="description-input"
+            css={{
+              width: '100%',
+              minHeight: 100,
+              p: '$3',
+              borderRadius: 8,
+              border: '1px solid $gray6',
+              background: '$gray3',
+              color: '$gray12',
+              fontFamily: '$body',
+              fontSize: 14,
+              resize: 'vertical',
+              '&:focus': {
+                outline: 'none',
+                borderColor: '$primary9',
+              },
+              '&:disabled': {
+                opacity: 0.5,
+              },
+            }}
+          />
         </Box>
 
         {error && (
-          <Box css={{ p: '$3', background: '#fef2f2', borderRadius: 8 }}>
+          <Box data-testid="error-message" css={{ p: '$3', background: '#fef2f2', borderRadius: 8 }}>
             <Text style="body2" css={{ color: '#991b1b' }}>{error}</Text>
           </Box>
         )}
 
         {mintResult && mintResult.success && (
-          <Box css={{ p: '$3', background: '#dcfce7', borderRadius: 8, border: '1px solid #86efac' }}>
+          <Box data-testid="success-message" css={{ p: '$3', background: '#dcfce7', borderRadius: 8, border: '1px solid #86efac' }}>
             <Text style="body2" css={{ color: '#166534' }}>✅ {mintResult.message}</Text>
             <Text style="body3" css={{ color: '#166534', wordBreak: 'break-all', mt: '$2' }}>
               Transaction: {mintResult.txHash}
             </Text>
+            <Link href="/my-nfts" passHref legacyBehavior>
+              <Button as="a" size="small" css={{ mt: '$3' }} data-testid="view-nfts-link">
+                View My NFTs
+              </Button>
+            </Link>
           </Box>
         )}
 
-        <Button
-          onClick={handleMint}
-          disabled={isButtonDisabled}
-          css={{ width: '100%' }}
-        >
-          {isMinting ? 'Minting...' : 'Mint NFT'}
-        </Button>
+        <Flex gap="3">
+          <Button
+            onClick={handleMint}
+            disabled={isButtonDisabled}
+            css={{ flex: 1 }}
+            data-testid="mint-btn"
+          >
+            {isMinting ? 'Minting...' : 'Mint NFT'}
+          </Button>
+          <Link href="/my-nfts" passHref legacyBehavior>
+            <Button as="a" color="secondary" data-testid="back-to-nfts-btn">
+              My NFTs
+            </Button>
+          </Link>
+        </Flex>
+
+        <Text style="body3" css={{ color: '$gray10', textAlign: 'center' }}>
+          Contract: <code style={{ fontSize: 11 }}>{CONTRACT_ADDRESS || 'Not configured'}</code>
+        </Text>
       </Flex>
     </Layout>
   )
