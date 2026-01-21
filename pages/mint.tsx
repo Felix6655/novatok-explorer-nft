@@ -18,9 +18,11 @@ const MintPage: NextPage = () => {
   const [description, setDescription] = useState('')
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string>('')
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string>('')
   
   // UI state
   const [isWrongNetwork, setIsWrongNetwork] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [isMinting, setIsMinting] = useState(false)
   const [mintResult, setMintResult] = useState<{ success: boolean; txHash?: string; message: string } | null>(null)
   const [error, setError] = useState('')
@@ -75,8 +77,27 @@ const MintPage: NextPage = () => {
     }
   }
 
+  // Upload file to API
+  const uploadToApi = async (file: File): Promise<string> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    const response = await fetch('/api/ipfs/upload', {
+      method: 'POST',
+      body: formData,
+    })
+    
+    const result = await response.json()
+    
+    if (!response.ok || !result.ok) {
+      throw new Error(result.error || 'Upload failed')
+    }
+    
+    return result.url
+  }
+
   // Handle file selection
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -86,7 +107,7 @@ const MintPage: NextPage = () => {
       return
     }
 
-    // Validate file size (max 5MB for base64)
+    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       setError('Image must be smaller than 5MB')
       return
@@ -94,25 +115,39 @@ const MintPage: NextPage = () => {
 
     setImageFile(file)
     setError('')
+    setUploadedImageUrl('')
 
-    // Create preview
+    // Create local preview immediately
     const reader = new FileReader()
     reader.onload = (e) => {
       setImagePreview(e.target?.result as string)
     }
     reader.readAsDataURL(file)
+
+    // Upload to API
+    setIsUploading(true)
+    try {
+      const url = await uploadToApi(file)
+      setUploadedImageUrl(url)
+    } catch (err: any) {
+      setError(`Upload failed: ${err.message}`)
+      setImageFile(null)
+      setImagePreview('')
+    } finally {
+      setIsUploading(false)
+    }
   }
 
   // Generate tokenURI as base64 data URL
   const generateTokenURI = async (): Promise<string> => {
-    if (!imagePreview) {
-      throw new Error('No image selected')
+    if (!uploadedImageUrl) {
+      throw new Error('Image not uploaded')
     }
 
     const metadata = {
       name: name || `NFT #${Date.now()}`,
       description: description || 'Minted on NovatoK NFT Marketplace',
-      image: imagePreview, // Base64 data URL
+      image: uploadedImageUrl,
       attributes: [],
     }
 
@@ -129,8 +164,8 @@ const MintPage: NextPage = () => {
       return
     }
 
-    if (!imageFile || !imagePreview) {
-      setError('Please select an image')
+    if (!imageFile || !uploadedImageUrl) {
+      setError('Please select and upload an image first')
       return
     }
 
@@ -187,6 +222,7 @@ const MintPage: NextPage = () => {
       setDescription('')
       setImageFile(null)
       setImagePreview('')
+      setUploadedImageUrl('')
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
@@ -197,7 +233,7 @@ const MintPage: NextPage = () => {
     }
   }
 
-  const isButtonDisabled = isWrongNetwork || !isConnected || isMinting || !imageFile || !!configError
+  const isButtonDisabled = isWrongNetwork || !isConnected || isMinting || isUploading || !uploadedImageUrl || !!configError
 
   return (
     <Layout>
@@ -218,23 +254,30 @@ const MintPage: NextPage = () => {
             data-testid="config-error"
             css={{
               p: '$4',
-              background: '#fef2f2',
-              borderRadius: 8,
-              border: '1px solid #fca5a5',
+              background: 'linear-gradient(135deg, rgba(127, 29, 29, 0.2) 0%, rgba(153, 27, 27, 0.1) 100%)',
+              borderRadius: 12,
+              border: '1px solid rgba(252, 165, 165, 0.5)',
+              backdropFilter: 'blur(8px)',
             }}
           >
-            <Text style="subtitle2" css={{ color: '#991b1b', mb: '$2' }}>
+            <Text style="subtitle2" css={{ color: '#fca5a5', mb: '$2' }}>
               ⚠️ Configuration Error
             </Text>
-            <Text style="body2" css={{ color: '#991b1b' }}>
+            <Text style="body2" css={{ color: '#fca5a5' }}>
               {configError}
             </Text>
           </Box>
         )}
 
         {isWrongNetwork && isConnected && (
-          <Box css={{ p: '$4', background: '#fef3c7', borderRadius: 8, border: '1px solid #f59e0b' }}>
-            <Text style="body2" css={{ color: '#92400e', mb: '$2' }}>
+          <Box css={{ 
+            p: '$4', 
+            background: 'linear-gradient(135deg, rgba(146, 64, 14, 0.2) 0%, rgba(245, 158, 11, 0.1) 100%)',
+            borderRadius: 12, 
+            border: '1px solid rgba(245, 158, 11, 0.5)',
+            backdropFilter: 'blur(8px)',
+          }}>
+            <Text style="body2" css={{ color: '#fcd34d', mb: '$2' }}>
               ⚠️ Wrong Network - Please switch to {getExpectedChainName()}
             </Text>
             <Button onClick={switchNetwork} size="small" data-testid="switch-network-btn">
@@ -247,21 +290,41 @@ const MintPage: NextPage = () => {
         <Box>
           <Text style="subtitle2" css={{ mb: '$2' }}>Image *</Text>
           <Box
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => !isUploading && fileInputRef.current?.click()}
             data-testid="image-upload-area"
             css={{
               border: '2px dashed $gray7',
               borderRadius: 12,
               p: '$4',
-              cursor: 'pointer',
+              cursor: isUploading ? 'wait' : 'pointer',
               textAlign: 'center',
-              transition: 'border-color 0.2s',
+              transition: 'all 0.3s ease',
+              background: imagePreview ? 'transparent' : 'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)',
               '&:hover': {
                 borderColor: '$primary9',
+                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)',
               },
             }}
           >
-            {imagePreview ? (
+            {isUploading ? (
+              <Flex direction="column" align="center" css={{ gap: '$2', py: '$4' }}>
+                <Box css={{
+                  width: 40,
+                  height: 40,
+                  border: '3px solid $gray6',
+                  borderTopColor: '$primary9',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  '@keyframes spin': {
+                    '0%': { transform: 'rotate(0deg)' },
+                    '100%': { transform: 'rotate(360deg)' },
+                  },
+                }} />
+                <Text style="body2" css={{ color: '$primary11' }}>
+                  Uploading image...
+                </Text>
+              </Flex>
+            ) : imagePreview ? (
               <Box css={{ position: 'relative' }}>
                 <img
                   src={imagePreview}
@@ -274,15 +337,25 @@ const MintPage: NextPage = () => {
                     objectFit: 'contain',
                   }}
                 />
-                <Text style="body3" css={{ color: '$gray10', mt: '$2' }}>
-                  Click to change image
-                </Text>
+                {uploadedImageUrl ? (
+                  <Text style="body3" css={{ color: '$green11', mt: '$2' }}>
+                    ✓ Image uploaded successfully
+                  </Text>
+                ) : (
+                  <Text style="body3" css={{ color: '$gray10', mt: '$2' }}>
+                    Click to change image
+                  </Text>
+                )}
               </Box>
             ) : (
-              <Flex direction="column" align="center" css={{ gap: '$2' }}>
-                <Text style="h6" css={{ color: '$gray10' }}>
-                  📁
-                </Text>
+              <Flex direction="column" align="center" css={{ gap: '$2', py: '$4' }}>
+                <Box css={{ 
+                  fontSize: 48, 
+                  lineHeight: 1,
+                  filter: 'grayscale(0.5)',
+                }}>
+                  🖼️
+                </Box>
                 <Text style="body2" css={{ color: '$gray11' }}>
                   Click to select an image
                 </Text>
@@ -347,16 +420,36 @@ const MintPage: NextPage = () => {
           />
         </Box>
 
+        {/* Error Message */}
         {error && (
-          <Box data-testid="error-message" css={{ p: '$3', background: '#fef2f2', borderRadius: 8 }}>
-            <Text style="body2" css={{ color: '#991b1b' }}>{error}</Text>
+          <Box 
+            data-testid="error-message" 
+            css={{ 
+              p: '$3', 
+              background: 'linear-gradient(135deg, rgba(127, 29, 29, 0.15) 0%, rgba(185, 28, 28, 0.1) 100%)',
+              borderRadius: 12,
+              border: '1px solid rgba(248, 113, 113, 0.3)',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            <Text style="body2" css={{ color: '#f87171' }}>⚠️ {error}</Text>
           </Box>
         )}
 
+        {/* Success Message */}
         {mintResult && mintResult.success && (
-          <Box data-testid="success-message" css={{ p: '$3', background: '#dcfce7', borderRadius: 8, border: '1px solid #86efac' }}>
-            <Text style="body2" css={{ color: '#166534' }}>✅ {mintResult.message}</Text>
-            <Text style="body3" css={{ color: '#166534', wordBreak: 'break-all', mt: '$2' }}>
+          <Box 
+            data-testid="success-message" 
+            css={{ 
+              p: '$4', 
+              background: 'linear-gradient(135deg, rgba(22, 101, 52, 0.15) 0%, rgba(34, 197, 94, 0.1) 100%)',
+              borderRadius: 12, 
+              border: '1px solid rgba(134, 239, 172, 0.3)',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            <Text style="body2" css={{ color: '#86efac' }}>✅ {mintResult.message}</Text>
+            <Text style="body3" css={{ color: '#86efac', wordBreak: 'break-all', mt: '$2', opacity: 0.8 }}>
               Transaction: {mintResult.txHash}
             </Text>
             <Link href="/my-nfts" passHref legacyBehavior>
@@ -374,7 +467,7 @@ const MintPage: NextPage = () => {
             css={{ flex: 1 }}
             data-testid="mint-btn"
           >
-            {isMinting ? 'Minting...' : 'Mint NFT'}
+            {isMinting ? 'Minting...' : isUploading ? 'Uploading...' : 'Mint NFT'}
           </Button>
           <Link href="/my-nfts" passHref legacyBehavior>
             <Button as="a" color="secondary" data-testid="back-to-nfts-btn">
