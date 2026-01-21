@@ -1,122 +1,155 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 
-const PINATA_JWT = process.env.PINATA_JWT || ''
-const PINATA_API_KEY = process.env.PINATA_API_KEY || ''
-const PINATA_SECRET_KEY = process.env.PINATA_SECRET_KEY || ''
+// Force Node.js runtime (NOT edge) for multipart/form-data parsing
+export const config = {
+  api: {
+    bodyParser: false, // Disable default body parser for multipart
+  },
+}
 
 type ResponseData = {
-  metadataUri?: string
-  imageUri?: string
-  metadataHash?: string
-  imageHash?: string
+  ok: boolean
+  url?: string
   error?: string
+}
+
+// Simple multipart parser for Vercel Node runtime
+async function parseMultipartForm(req: NextApiRequest): Promise<{ file: Buffer; mimeType: string; fileName: string } | null> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = []
+    
+    req.on('data', (chunk: Buffer) => {
+      chunks.push(chunk)
+    })
+    
+    req.on('end', () => {
+      try {
+        const buffer = Buffer.concat(chunks)
+        const contentType = req.headers['content-type'] || ''
+        
+        // Extract boundary from content-type
+        const boundaryMatch = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/)
+        if (!boundaryMatch) {
+          resolve(null)
+          return
+        }
+        const boundary = boundaryMatch[1] || boundaryMatch[2]
+        
+        // Parse multipart data
+        const boundaryBuffer = Buffer.from(`--${boundary}`)
+        const parts = splitBuffer(buffer, boundaryBuffer)
+        
+        for (const part of parts) {
+          const partStr = part.toString('utf8', 0, Math.min(1000, part.length))
+          
+          // Check if this part contains a file
+          if (partStr.includes('Content-Disposition') && partStr.includes('filename=')) {
+            // Extract filename
+            const filenameMatch = partStr.match(/filename="([^"]+)"/)
+            const fileName = filenameMatch ? filenameMatch[1] : 'upload.png'
+            
+            // Extract content type
+            const mimeMatch = partStr.match(/Content-Type:\s*([^\r\n]+)/)
+            const mimeType = mimeMatch ? mimeMatch[1].trim() : 'image/png'
+            
+            // Find the start of binary data (after \r\n\r\n)
+            const headerEnd = part.indexOf(Buffer.from('\r\n\r\n'))
+            if (headerEnd !== -1) {
+              // Extract file data, removing trailing \r\n
+              let fileData = part.slice(headerEnd + 4)
+              // Remove trailing boundary markers
+              const trailingCRLF = fileData.lastIndexOf(Buffer.from('\r\n'))
+              if (trailingCRLF > 0) {
+                fileData = fileData.slice(0, trailingCRLF)
+              }
+              
+              resolve({ file: fileData, mimeType, fileName })
+              return
+            }
+          }
+        }
+        
+        resolve(null)
+      } catch (err) {
+        reject(err)
+      }
+    })
+    
+    req.on('error', reject)
+  })
+}
+
+// Helper to split buffer by boundary
+function splitBuffer(buffer: Buffer, boundary: Buffer): Buffer[] {
+  const parts: Buffer[] = []
+  let start = 0
+  let index = buffer.indexOf(boundary, start)
+  
+  while (index !== -1) {
+    if (start !== index) {
+      parts.push(buffer.slice(start, index))
+    }
+    start = index + boundary.length
+    index = buffer.indexOf(boundary, start)
+  }
+  
+  if (start < buffer.length) {
+    parts.push(buffer.slice(start))
+  }
+  
+  return parts
 }
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ResponseData>
 ) {
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end()
+  }
+  
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' })
+    return res.status(405).json({ ok: false, error: 'Method not allowed' })
   }
 
   try {
-    const { imageBase64, metadata, fileName } = req.body
-
-    if (!imageBase64) {
-      return res.status(400).json({ error: 'Image is required' })
+    // Parse multipart form data
+    const parsed = await parseMultipartForm(req)
+    
+    if (!parsed || !parsed.file || parsed.file.length === 0) {
+      return res.status(400).json({ ok: false, error: 'No file uploaded or file is empty' })
     }
-
-    if (!metadata || !metadata.name) {
-      return res.status(400).json({ error: 'Metadata with name is required' })
+    
+    const { file, mimeType } = parsed
+    
+    // Validate file size (max 5MB)
+    if (file.length > 5 * 1024 * 1024) {
+      return res.status(400).json({ ok: false, error: 'File too large. Maximum size is 5MB.' })
     }
-
-    // Check for Pinata credentials
-    if (!PINATA_JWT && (!PINATA_API_KEY || !PINATA_SECRET_KEY)) {
-      return res.status(500).json({
-        error: 'IPFS service not configured. Please set PINATA_JWT or PINATA_API_KEY/PINATA_SECRET_KEY.',
-      })
+    
+    // Validate mime type
+    if (!mimeType.startsWith('image/')) {
+      return res.status(400).json({ ok: false, error: 'Only image files are allowed' })
     }
-
-    // Prepare headers for Pinata API
-    const headers: Record<string, string> = PINATA_JWT
-      ? { Authorization: `Bearer ${PINATA_JWT}` }
-      : {
-          pinata_api_key: PINATA_API_KEY,
-          pinata_secret_api_key: PINATA_SECRET_KEY,
-        }
-
-    // 1. Upload image to IPFS
-    const imageBuffer = Buffer.from(imageBase64, 'base64')
-    const imageFormData = new FormData()
-    const imageBlob = new Blob([imageBuffer], { type: 'image/png' })
-    const imageName = fileName || `nft-image-${Date.now()}.png`
-    imageFormData.append('file', imageBlob, imageName)
-
-    const pinataMetadata = JSON.stringify({
-      name: `${metadata.name} - Image`,
-    })
-    imageFormData.append('pinataMetadata', pinataMetadata)
-
-    const imageResponse = await fetch(
-      'https://api.pinata.cloud/pinning/pinFileToIPFS',
-      {
-        method: 'POST',
-        headers,
-        body: imageFormData,
-      }
-    )
-
-    if (!imageResponse.ok) {
-      const errorText = await imageResponse.text()
-      throw new Error(`Failed to upload image to IPFS: ${errorText}`)
-    }
-
-    const imageResult = await imageResponse.json()
-    const imageIpfsHash = imageResult.IpfsHash
-    const imageUri = `ipfs://${imageIpfsHash}`
-
-    // 2. Create and upload metadata JSON
-    const fullMetadata = {
-      ...metadata,
-      image: imageUri,
-    }
-
-    const metadataResponse = await fetch(
-      'https://api.pinata.cloud/pinning/pinJSONToIPFS',
-      {
-        method: 'POST',
-        headers: {
-          ...headers,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          pinataContent: fullMetadata,
-          pinataMetadata: {
-            name: `${metadata.name} - Metadata`,
-          },
-        }),
-      }
-    )
-
-    if (!metadataResponse.ok) {
-      const errorText = await metadataResponse.text()
-      throw new Error(`Failed to upload metadata to IPFS: ${errorText}`)
-    }
-
-    const metadataResult = await metadataResponse.json()
-    const metadataIpfsHash = metadataResult.IpfsHash
-    const metadataUri = `ipfs://${metadataIpfsHash}`
-
+    
+    // Convert to base64 data URL
+    const base64 = file.toString('base64')
+    const dataUrl = `data:${mimeType};base64,${base64}`
+    
     return res.status(200).json({
-      metadataUri,
-      imageUri,
-      metadataHash: metadataIpfsHash,
-      imageHash: imageIpfsHash,
+      ok: true,
+      url: dataUrl,
     })
   } catch (error: any) {
+    console.error('Upload error:', error)
     return res.status(500).json({
-      error: error.message || 'Failed to upload to IPFS',
+      ok: false,
+      error: error.message || 'Failed to process upload',
     })
   }
 }
