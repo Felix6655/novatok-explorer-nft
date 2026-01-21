@@ -279,7 +279,7 @@ const MintPage: NextPage = () => {
                 </Text>
               </Box>
             ) : (
-              <Flex direction="column" align="center" gap="2">
+              <Flex direction="column" align="center" css={{ gap: '$2' }}>
                 <Text style="h6" css={{ color: '$gray10' }}>
                   📁
                 </Text>
