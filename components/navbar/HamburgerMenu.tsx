@@ -171,6 +171,34 @@ const HamburgerMenu = () => {
               </Text>
             </Link>
 
+            <Link href="/my-nfts" legacyBehavior>
+              <Text
+                style="subtitle1"
+                css={{
+                  borderBottom: '1px solid $gray4',
+                  cursor: 'pointer',
+                  pb: '$4',
+                  pt: '24px',
+                }}
+              >
+                My NFTs
+              </Text>
+            </Link>
+
+            <Link href="/mint" legacyBehavior>
+              <Text
+                style="subtitle1"
+                css={{
+                  borderBottom: '1px solid $gray4',
+                  cursor: 'pointer',
+                  pb: '$4',
+                  pt: '24px',
+                }}
+              >
+                Mint NFT
+              </Text>
+            </Link>
+
             <Anchor
               href="https://docs.reservoir.tools/docs"
               target="_blank"
