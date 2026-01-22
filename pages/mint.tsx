@@ -7,6 +7,7 @@ import { useAccount } from 'wagmi'
 import { CHAIN_ID, CONTRACT_ADDRESS, isExpectedChain, getExpectedChainName } from 'lib/config'
 import WrongNetworkBanner from 'components/common/WrongNetworkBanner'
 import NetworkBadge from 'components/common/NetworkBadge'
+import { ConnectWalletButton } from 'components/ConnectWalletButton'
 import Link from 'next/link'
 
 // ============================================
