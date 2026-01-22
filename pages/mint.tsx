@@ -760,6 +760,26 @@ const MintPage: NextPage = () => {
             </Box>
           )}
 
+          {/* Connect Wallet Prompt */}
+          {!isConnected && (
+            <Box css={{ 
+              p: '$4', 
+              background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%)',
+              borderRadius: 12, 
+              border: '1px solid rgba(139, 92, 246, 0.3)',
+              backdropFilter: 'blur(8px)',
+              textAlign: 'center',
+            }}>
+              <Text style="subtitle2" css={{ color: '$primary11', mb: '$2' }}>
+                Connect Your Wallet
+              </Text>
+              <Text style="body3" css={{ color: '$gray11', mb: '$3' }}>
+                Connect your wallet to mint NFTs on {getExpectedChainName()}
+              </Text>
+              <ConnectWalletButton />
+            </Box>
+          )}
+
           {/* Image Upload */}
           <Box>
             <Text style="subtitle2" css={{ mb: '$2' }}>Image *</Text>
