@@ -1,11 +1,54 @@
 "use client";
-import { useRef, useState } from "react";
+
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { ethers } from "ethers";
+
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
 
 export default function MintPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [imageUrl, setImageUrl] = useState<string>("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string>("");
+
+  // Wallet + mint state
+  const [walletAddress, setWalletAddress] = useState<string>("");
+  const [chainId, setChainId] = useState<number | null>(null);
+  const [minting, setMinting] = useState(false);
+  const [mintError, setMintError] = useState<string>("");
+  const [txHash, setTxHash] = useState<string>("");
+
+  const EXPECTED_CHAIN_ID = Number(
+    process.env.NEXT_PUBLIC_CHAIN_ID || "11155111"
+  );
+
+  const CONTRACT_ADDRESS =
+    process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ||
+    process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS ||
+    "";
+
+  const hasMetaMask = typeof window !== "undefined" && !!window.ethereum;
+
+  // Minimal ABI that covers the most common ERC-721 mint patterns
+  // We try these, in this order:
+  // 1) safeMint(address to, string uri)
+  // 2) mint(address to, string uri)
+  // 3) safeMint(string uri)
+  // 4) mint(string uri)
+  const ABI = useMemo(
+    () => [
+      "function safeMint(address to, string uri) public returns (uint256)",
+      "function mint(address to, string uri) public returns (uint256)",
+      "function safeMint(string uri) public returns (uint256)",
+      "function mint(string uri) public returns (uint256)",
+    ],
+    []
+  );
 
   async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -23,7 +66,7 @@ export default function MintPage() {
 
       if (!data?.ok) throw new Error(data?.error || "Upload failed");
 
-      setImageUrl(data.url); // this becomes your tokenURI image
+      setImageUrl(data.url);
     } catch (err: any) {
       setUploadError(err?.message || "Upload failed");
     } finally {
@@ -32,9 +75,160 @@ export default function MintPage() {
     }
   }
 
+  async function refreshWalletState() {
+    if (!hasMetaMask) return;
+
+    const accounts = await window.ethereum.request({ method: "eth_accounts" });
+    const chainHex = await window.ethereum.request({ method: "eth_chainId" });
+
+    setWalletAddress(accounts?.[0] || "");
+    setChainId(chainHex ? parseInt(chainHex, 16) : null);
+  }
+
+  async function connectWallet() {
+    setMintError("");
+    setTxHash("");
+
+    if (!hasMetaMask) {
+      setMintError("MetaMask not detected. Install MetaMask to mint.");
+      return;
+    }
+
+    try {
+      await window.ethereum.request({ method: "eth_requestAccounts" });
+      await refreshWalletState();
+    } catch (e: any) {
+      setMintError(e?.message || "Failed to connect wallet");
+    }
+  }
+
+  async function switchToSepolia() {
+    if (!hasMetaMask) return;
+
+    try {
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: "0xaa36a7" }], // 11155111
+      });
+      await refreshWalletState();
+    } catch (e: any) {
+      // If chain isn't added yet
+      if (e?.code === 4902) {
+        setMintError("Sepolia is not added in MetaMask. Add it and try again.");
+      } else {
+        setMintError(e?.message || "Failed to switch network");
+      }
+    }
+  }
+
+  async function mintNft() {
+    setMintError("");
+    setTxHash("");
+
+    if (!imageUrl) {
+      setMintError("Upload an image first.");
+      return;
+    }
+    if (!CONTRACT_ADDRESS) {
+      setMintError(
+        "Missing contract address env var. Set NEXT_PUBLIC_CONTRACT_ADDRESS (or NEXT_PUBLIC_NFT_CONTRACT_ADDRESS) in Vercel."
+      );
+      return;
+    }
+    if (!hasMetaMask) {
+      setMintError("MetaMask not detected.");
+      return;
+    }
+    if (!walletAddress) {
+      setMintError("Connect your wallet first.");
+      return;
+    }
+    if (chainId !== null && chainId !== EXPECTED_CHAIN_ID) {
+      setMintError(`Wrong network. Switch to Sepolia (${EXPECTED_CHAIN_ID}).`);
+      return;
+    }
+
+    setMinting(true);
+
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+
+      // Try calling common mint variants
+      let tx;
+      try {
+        tx = await contract.safeMint(walletAddress, imageUrl);
+      } catch {
+        try {
+          tx = await contract.mint(walletAddress, imageUrl);
+        } catch {
+          try {
+            tx = await contract.safeMint(imageUrl);
+          } catch {
+            tx = await contract.mint(imageUrl);
+          }
+        }
+      }
+
+      setTxHash(tx.hash);
+
+      const receipt = await tx.wait();
+      if (!receipt) {
+        setMintError("Transaction sent but no receipt returned.");
+        return;
+      }
+    } catch (e: any) {
+      // Make the error readable
+      const msg =
+        e?.shortMessage ||
+        e?.reason ||
+        e?.message ||
+        "Mint failed (unknown error)";
+
+      // Helpful hint if ABI mismatch
+      if (String(msg).toLowerCase().includes("is not a function")) {
+        setMintError(
+          msg +
+            " — Your contract mint function name/signature is different. Tell me the contract mint function name and I’ll adjust this file."
+        );
+      } else {
+        setMintError(msg);
+      }
+    } finally {
+      setMinting(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!hasMetaMask) return;
+
+    refreshWalletState();
+
+    const onAccountsChanged = () => refreshWalletState();
+    const onChainChanged = () => refreshWalletState();
+
+    window.ethereum.on?.("accountsChanged", onAccountsChanged);
+    window.ethereum.on?.("chainChanged", onChainChanged);
+
+    return () => {
+      window.ethereum.removeListener?.("accountsChanged", onAccountsChanged);
+      window.ethereum.removeListener?.("chainChanged", onChainChanged);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const wrongNetwork =
+    chainId !== null && chainId !== EXPECTED_CHAIN_ID && walletAddress;
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-50 dark:bg-black">
-      <h1 className="text-3xl font-bold mb-6 text-black dark:text-zinc-50">Mint NFT</h1>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-50 dark:bg-black px-4">
+      <h1 className="text-3xl font-bold mb-6 text-black dark:text-zinc-50">
+        Mint NFT
+      </h1>
+
+      {/* Upload card */}
       <div
         className="w-64 h-64 flex items-center justify-center border-2 border-dashed border-zinc-400 rounded-lg cursor-pointer bg-white dark:bg-zinc-900 mb-4"
         onClick={() => fileInputRef.current?.click()}
@@ -42,7 +236,11 @@ export default function MintPage() {
         {uploading ? (
           <span className="text-zinc-500">Uploading...</span>
         ) : imageUrl ? (
-          <img src={imageUrl} alt="Preview" className="max-w-full max-h-full rounded" />
+          <img
+            src={imageUrl}
+            alt="Preview"
+            className="max-w-full max-h-full rounded"
+          />
         ) : (
           <span className="text-zinc-400">Click to upload image</span>
         )}
@@ -54,8 +252,88 @@ export default function MintPage() {
           onChange={onPickFile}
         />
       </div>
+
       {uploadError && <div className="text-red-500 mb-2">{uploadError}</div>}
-      {imageUrl && <div className="text-green-600">Image uploaded!</div>}
+      {imageUrl && <div className="text-green-600 mb-4">Image uploaded!</div>}
+
+      {/* Wallet + Mint controls */}
+      <div className="w-full max-w-md rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-sm text-zinc-700 dark:text-zinc-200">
+            {walletAddress ? (
+              <>
+                Connected:{" "}
+                <span className="font-mono">
+                  {walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}
+                </span>
+              </>
+            ) : (
+              "Wallet not connected"
+            )}
+          </div>
+
+          {!walletAddress ? (
+            <button
+              onClick={connectWallet}
+              className="px-3 py-2 rounded-md bg-black text-white dark:bg-zinc-50 dark:text-black"
+            >
+              Connect Wallet
+            </button>
+          ) : wrongNetwork ? (
+            <button
+              onClick={switchToSepolia}
+              className="px-3 py-2 rounded-md bg-amber-600 text-white"
+            >
+              Switch to Sepolia
+            </button>
+          ) : (
+            <span className="text-xs text-zinc-500">
+              Chain: {chainId ?? "?"}
+            </span>
+          )}
+        </div>
+
+        <div className="mt-4">
+          <button
+            onClick={mintNft}
+            disabled={minting || !walletAddress || wrongNetwork || !imageUrl}
+            className="w-full px-4 py-3 rounded-lg bg-emerald-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {minting ? "Minting..." : "Mint NFT"}
+          </button>
+        </div>
+
+        {txHash && (
+          <div className="mt-3 text-sm text-zinc-700 dark:text-zinc-200">
+            Tx:{" "}
+            <a
+              className="underline"
+              href={`https://sepolia.etherscan.io/tx/${txHash}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {txHash.slice(0, 10)}…{txHash.slice(-8)}
+            </a>
+          </div>
+        )}
+
+        {mintError && <div className="mt-3 text-red-500 text-sm">{mintError}</div>}
+
+        {/* Helpful config display (non-secret) */}
+        <div className="mt-4 text-xs text-zinc-500 space-y-1">
+          <div>Expected chain: {EXPECTED_CHAIN_ID}</div>
+          <div>
+            Contract:{" "}
+            {CONTRACT_ADDRESS ? (
+              <span className="font-mono">
+                {CONTRACT_ADDRESS.slice(0, 6)}…{CONTRACT_ADDRESS.slice(-4)}
+              </span>
+            ) : (
+              <span className="text-red-400">missing</span>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
