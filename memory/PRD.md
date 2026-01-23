@@ -38,11 +38,14 @@ Simple creator email capture ready for future automation:
 #### 1. Creator Hub (`/creator-hub`) - NEW
 - **Status**: ✅ IMPLEMENTED
 - Creator dashboard with stats (NFTs minted, featured count, views, earnings)
+- **Primary CTA**: "🎨 Create New NFT" button → routes to /mint
+- **Onboarding Section** (for first-time creators): Upload → Mint → Promote steps
 - "My NFTs" grid with status tags (Draft, Active, Featured)
 - Promotions panel with three tiers:
   - Feature NFT (0.05 ETH / 7 days)
   - Feature Creator (0.1 ETH / 14 days)
   - Visibility Boost (0.02 ETH / 3 days)
+- Email capture for promotion notifications
 - Wallet connection prompt when not connected
 - Quick action links to Mint, My NFTs, Explore
 
