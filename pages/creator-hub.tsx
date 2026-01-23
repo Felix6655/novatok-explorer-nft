@@ -548,21 +548,18 @@ const CreatorHubPage: NextPage = () => {
                       key={option.id}
                       option={option}
                       onSelect={handlePromotionSelect}
+                      isLoading={isProcessingPayment}
+                      disabled={!isConnected}
                     />
                   ))}
                 </Flex>
 
-                <Box
-                  css={{
-                    mt: '$4',
-                    pt: '$3',
-                    borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-                  }}
-                >
-                  <Text style="body3" css={{ color: '$gray9', textAlign: 'center' }}>
-                    💳 Payment integration coming soon
-                  </Text>
-                </Box>
+                {/* Payment Error */}
+                {paymentError && (
+                  <Box css={{ mt: '$3', p: '$2', background: 'rgba(239, 68, 68, 0.1)', borderRadius: 8 }}>
+                    <Text style="body3" css={{ color: '#f87171' }}>{paymentError}</Text>
+                  </Box>
+                )}
 
                 {/* Email Capture for Promotion Notifications */}
                 <Box css={{ mt: '$4' }}>
