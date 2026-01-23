@@ -230,24 +230,60 @@ const CreatorHubPage: NextPage = () => {
   const { address, isConnected } = useAccount()
   const [stats, setStats] = useState<CreatorStats>(MOCK_STATS)
   const [nfts, setNfts] = useState<NFTItem[]>([])
-  const [selectedPromotion, setSelectedPromotion] = useState<PromotionTier | null>(null)
-  const [showPromoModal, setShowPromoModal] = useState(false)
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false)
+  const [paymentError, setPaymentError] = useState('')
 
-  // Load creator data (mock for now)
+  // Load creator data
   useEffect(() => {
     if (isConnected && address) {
-      // TODO: Fetch real data from blockchain/API
-      // For now, using mock data
       setStats(MOCK_STATS)
       setNfts([])
     }
   }, [isConnected, address])
 
-  const handlePromotionSelect = (tier: PromotionTier) => {
-    setSelectedPromotion(tier)
-    setShowPromoModal(true)
-    // TODO: Implement payment flow
-    alert(`Promotion "${tier}" selected. Payment integration coming soon!`)
+  // Handle Stripe checkout for Feature NFT
+  const handlePromotionSelect = async (tier: PromotionTier) => {
+    if (tier !== 'feature_nft') {
+      return
+    }
+
+    if (!address) {
+      setPaymentError('Please connect your wallet first')
+      return
+    }
+
+    // For MVP, use a placeholder NFT ID (in production, user would select which NFT to feature)
+    const nftId = `nft_${address}_${Date.now()}`
+
+    setIsProcessingPayment(true)
+    setPaymentError('')
+
+    try {
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nftId,
+          walletAddress: address,
+          promotionType: 'feature_nft',
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || 'Failed to create checkout session')
+      }
+
+      // Redirect to Stripe Checkout
+      if (result.url) {
+        window.location.href = result.url
+      }
+    } catch (err: any) {
+      setPaymentError(err.message || 'Payment failed')
+    } finally {
+      setIsProcessingPayment(false)
+    }
   }
 
   return (
