@@ -945,8 +945,11 @@ const MintPage: NextPage = () => {
                 backdropFilter: 'blur(8px)',
               }}
             >
-              <Text style="body2" css={{ color: '#86efac' }}>✅ {mintResult.message}</Text>
-              <Text style="body3" css={{ color: '#86efac', wordBreak: 'break-all', mt: '$2', opacity: 0.8 }}>
+              <Flex align="center" css={{ gap: '$2', mb: '$2' }}>
+                <Text css={{ fontSize: 28 }}>🎉</Text>
+                <Text style="h6" css={{ color: '#86efac' }}>NFT Minted Successfully!</Text>
+              </Flex>
+              <Text style="body3" css={{ color: '#86efac', wordBreak: 'break-all', opacity: 0.8 }}>
                 Transaction: {mintResult.txHash}
               </Text>
               
@@ -959,11 +962,43 @@ const MintPage: NextPage = () => {
                 />
               </Box>
 
-              <Link href="/my-nfts" passHref legacyBehavior>
-                <Button as="a" size="small" css={{ mt: '$3' }} data-testid="view-nfts-link">
-                  View My NFTs
+              {/* Post-mint CTAs */}
+              <Flex css={{ gap: '$2', mt: '$4', flexWrap: 'wrap' }}>
+                <Link href="/creator-hub" passHref legacyBehavior>
+                  <Button 
+                    as="a" 
+                    data-testid="go-to-creator-hub-btn"
+                    css={{
+                      background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                      },
+                    }}
+                  >
+                    Go to Creator Hub →
+                  </Button>
+                </Link>
+                <Link href="/my-nfts" passHref legacyBehavior>
+                  <Button as="a" color="secondary" data-testid="view-nfts-link">
+                    View My NFTs
+                  </Button>
+                </Link>
+                <Button 
+                  color="gray3" 
+                  onClick={() => {
+                    setMintResult(null)
+                    setImageFile(null)
+                    setImagePreview('')
+                    setUploadedImageUrl('')
+                    setName('')
+                    setDescription('')
+                    setAttributes([])
+                  }}
+                  data-testid="mint-another-btn"
+                >
+                  Mint Another
                 </Button>
-              </Link>
+              </Flex>
             </Box>
           )}
 
