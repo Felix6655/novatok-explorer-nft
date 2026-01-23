@@ -5,6 +5,7 @@ import Layout from 'components/Layout'
 import { Head } from 'components/Head'
 import { useAccount } from 'wagmi'
 import { ConnectWalletButton } from 'components/ConnectWalletButton'
+import EmailCapture from 'components/EmailCapture'
 import Link from 'next/link'
 import { getExpectedChainName } from 'lib/config'
 
