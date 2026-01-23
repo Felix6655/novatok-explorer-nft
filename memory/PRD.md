@@ -49,7 +49,7 @@ The app is driven by these env vars:
 - All warnings are non-blocking (mint always possible)
 
 ### Navigation
-- Desktop: "My NFTs" and "Mint" links added to navbar
+- Desktop: "Creator Hub", "My NFTs", and "Mint" links in navbar
 - Mobile: Links added to hamburger menu
 
 ## Architecture
