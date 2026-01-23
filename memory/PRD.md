@@ -23,6 +23,16 @@ The app is driven by these env vars:
 - `NEXT_PUBLIC_CONTRACT_ADDRESS` - Deployed ERC721 contract
 - `NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID` - Optional, works without (MetaMask fallback)
 
+### Email Capture & Follow-up System (NEW)
+Simple creator email capture ready for future automation:
+- **API Endpoint**: `POST /api/creator/email` - stores email with wallet association
+- **Capture Points**:
+  - Creator Hub: "Get Notified" form in promotions sidebar
+  - Mint Success: Inline capture after successful mint
+- **Data Stored**: email, walletAddress, source, optInMarketing, createdAt
+- **Storage**: JSON file (MVP) - replace with MongoDB in production
+- **Future Hooks**: Welcome emails, promotion reminders, sales notifications
+
 ### MVP Features Implemented
 
 #### 1. Creator Hub (`/creator-hub`) - NEW
