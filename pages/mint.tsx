@@ -8,6 +8,7 @@ import { CHAIN_ID, CONTRACT_ADDRESS, isExpectedChain, getExpectedChainName } fro
 import WrongNetworkBanner from 'components/common/WrongNetworkBanner'
 import NetworkBadge from 'components/common/NetworkBadge'
 import { ConnectWalletButton } from 'components/ConnectWalletButton'
+import { EmailCaptureInline } from 'components/EmailCapture'
 import Link from 'next/link'
 
 // ============================================
