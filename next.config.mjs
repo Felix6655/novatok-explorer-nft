@@ -1,81 +1,84 @@
-import { DefaultChain } from './.cache/chains.js'
-import { withSentryConfig } from '@sentry/nextjs'
+import { withSentryConfig } from "@sentry/nextjs";
 
 const sentryWebpackPluginOptions = {
   org: process.env.SENTRY_ORG,
-  project: 'explorer',
+  project: "explorer",
   silent: true,
-}
-/**
- * @type {import('next').NextConfig}
- */
+};
+
+// DefaultChain replacement (since .cache/chains.js is not available on Vercel builds)
+const DEFAULT_CHAIN_PREFIX = process.env.NEXT_PUBLIC_DEFAULT_CHAIN || "ethereum";
+
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
     unoptimized: true,
   },
+
   async rewrites() {
     return [
       {
-        source: '/:chain/asset/:assetId/buy',
-        destination: '/:chain/asset/:assetId',
+        source: "/:chain/asset/:assetId/buy",
+        destination: "/:chain/asset/:assetId",
       },
       {
-        source: '/:chain/collection/:contract/sweep',
-        destination: '/:chain/collection/:contract',
+        source: "/:chain/collection/:contract/sweep",
+        destination: "/:chain/collection/:contract",
       },
       {
-        source: '/:chain/collection/:contract/mint',
-        destination: '/:chain/collection/:contract',
+        source: "/:chain/collection/:contract/mint",
+        destination: "/:chain/collection/:contract",
       },
-    ]
+    ];
   },
+
   async redirects() {
     return [
       {
-        source: '/',
-        destination: `/${DefaultChain.routePrefix}`,
+        source: "/",
+        destination: `/${DEFAULT_CHAIN_PREFIX}`,
         permanent: false,
       },
       {
-        source: '/collection/:chain/:collection',
-        destination: '/:chain/collection/:collection',
+        source: "/collection/:chain/:collection",
+        destination: "/:chain/collection/:collection",
         permanent: true,
       },
       {
-        source: '/collection/:chain/:collection/:tokenId',
-        destination: '/:chain/asset/:collection%3A:tokenId',
+        source: "/collection/:chain/:collection/:tokenId",
+        destination: "/:chain/asset/:collection%3A:tokenId",
         permanent: true,
       },
       {
-        source: '/collection-rankings',
-        destination: `/${DefaultChain.routePrefix}/collection-rankings`,
+        source: "/collection-rankings",
+        destination: `/${DEFAULT_CHAIN_PREFIX}/collection-rankings`,
         permanent: true,
       },
-
       {
-        source: '/:chain/collection-rankings',
-        destination: `/:chain/collections/trending`,
+        source: "/:chain/collection-rankings",
+        destination: "/:chain/collections/trending",
         permanent: false,
       },
-    ]
+    ];
   },
+
   async headers() {
     return [
       {
-        source: '/:path*',
+        source: "/:path*",
         headers: [
           {
-            key: 'Content-Security-Policy',
+            key: "Content-Security-Policy",
             value: "frame-ancestors 'none'",
           },
           {
-            key: 'X-Frame-Options',
-            value: 'DENY',
+            key: "X-Frame-Options",
+            value: "DENY",
           },
         ],
       },
-    ]
+    ];
   },
-}
+};
 
-export default withSentryConfig(nextConfig, sentryWebpackPluginOptions)
+export default withSentryConfig(nextConfig, sentryWebpackPluginOptions);
