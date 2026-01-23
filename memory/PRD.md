@@ -25,7 +25,18 @@ The app is driven by these env vars:
 
 ### MVP Features Implemented
 
-#### 1. My NFTs Page (`/my-nfts`)
+#### 1. Creator Hub (`/creator-hub`) - NEW
+- **Status**: ✅ IMPLEMENTED
+- Creator dashboard with stats (NFTs minted, featured count, views, earnings)
+- "My NFTs" grid with status tags (Draft, Active, Featured)
+- Promotions panel with three tiers:
+  - Feature NFT (0.05 ETH / 7 days)
+  - Feature Creator (0.1 ETH / 14 days)
+  - Visibility Boost (0.02 ETH / 3 days)
+- Wallet connection prompt when not connected
+- Quick action links to Mint, My NFTs, Explore
+
+#### 2. My NFTs Page (`/my-nfts`)
 - **Status**: ✅ IMPLEMENTED
 - Displays connected wallet's NFTs from the configured contract
 - "Scan Blockchain" button triggers on-chain scan using viem/wagmi
