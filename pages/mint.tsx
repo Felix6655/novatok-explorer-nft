@@ -949,6 +949,16 @@ const MintPage: NextPage = () => {
               <Text style="body3" css={{ color: '#86efac', wordBreak: 'break-all', mt: '$2', opacity: 0.8 }}>
                 Transaction: {mintResult.txHash}
               </Text>
+              
+              {/* Email capture for post-mint follow-up */}
+              <Box css={{ mt: '$3', pt: '$3', borderTop: '1px solid rgba(134, 239, 172, 0.2)' }}>
+                <EmailCaptureInline
+                  walletAddress={address}
+                  source="mint_success"
+                  message="Get notified when your NFT sells:"
+                />
+              </Box>
+
               <Link href="/my-nfts" passHref legacyBehavior>
                 <Button as="a" size="small" css={{ mt: '$3' }} data-testid="view-nfts-link">
                   View My NFTs
