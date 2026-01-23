@@ -7,7 +7,7 @@ const getStripe = () => {
   if (!secretKey) {
     throw new Error('STRIPE_SECRET_KEY is not configured')
   }
-  return new Stripe(secretKey, { apiVersion: '2025-04-30.basil' })
+  return new Stripe(secretKey)
 }
 
 export default async function handler(
