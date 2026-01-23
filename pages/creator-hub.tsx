@@ -52,33 +52,16 @@ const MOCK_STATS: CreatorStats = {
   earnings: '0.00',
 }
 
+// Only Feature NFT is available with Stripe payments
 const PROMOTION_OPTIONS: PromotionOption[] = [
   {
     id: 'feature_nft',
     title: 'Feature NFT',
     description: 'Highlight your NFT on the homepage carousel for maximum exposure',
-    price: '0.05 ETH',
+    price: '$35',
     duration: '7 days',
     icon: '⭐',
     color: 'rgba(251, 191, 36, 0.2)',
-  },
-  {
-    id: 'feature_creator',
-    title: 'Feature Creator',
-    description: 'Get your creator profile featured in the "Top Creators" section',
-    price: '0.1 ETH',
-    duration: '14 days',
-    icon: '👤',
-    color: 'rgba(139, 92, 246, 0.2)',
-  },
-  {
-    id: 'visibility_boost',
-    title: 'Visibility Boost',
-    description: 'Boost all your NFTs in search results and collection views',
-    price: '0.02 ETH',
-    duration: '3 days',
-    icon: '🚀',
-    color: 'rgba(59, 130, 246, 0.2)',
   },
 ]
 
