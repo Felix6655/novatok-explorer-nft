@@ -67,6 +67,8 @@ Simple creator email capture ready for future automation:
 - **NEW: Marketplace Preview Simulator** - Toggle between Marketplace/Mobile/Dark views
 - **NEW: NovaTok Suggestions** - Collapsible panel with context-aware tips
 - **NEW: Attributes Editor** - Add up to 5 trait/value pairs
+- **NEW: Post-Mint Success UX** - Shows "Go to Creator Hub", "View My NFTs", "Mint Another" CTAs
+- **NEW: Email capture** after successful mint
 - Wrong network detection with "Switch Network" button
 - Upload progress indicator and clear error messages
 - Transaction hash displayed on success
