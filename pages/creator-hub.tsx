@@ -279,6 +279,8 @@ const CreatorHubPage: NextPage = () => {
             mb: '$5',
             pb: '$4',
             borderBottom: '1px solid $gray5',
+            flexWrap: 'wrap',
+            gap: '$3',
           }}
         >
           <Box>
@@ -290,8 +292,17 @@ const CreatorHubPage: NextPage = () => {
             </Text>
           </Box>
           <Link href="/mint" passHref legacyBehavior>
-            <Button as="a" data-testid="create-new-btn">
-              + Create New
+            <Button 
+              as="a" 
+              data-testid="create-new-btn"
+              css={{
+                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                },
+              }}
+            >
+              🎨 Create New NFT
             </Button>
           </Link>
         </Flex>
@@ -327,6 +338,119 @@ const CreatorHubPage: NextPage = () => {
           <Flex css={{ gap: '$5', flexDirection: 'column', '@bp1000': { flexDirection: 'row' } }}>
             {/* Main Content */}
             <Box css={{ flex: 1 }}>
+              {/* Onboarding Section - Show for first-time creators */}
+              {nfts.length === 0 && (
+                <Box
+                  css={{
+                    mb: '$5',
+                    p: '$4',
+                    background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.08) 100%)',
+                    borderRadius: 16,
+                    border: '1px solid rgba(139, 92, 246, 0.25)',
+                  }}
+                >
+                  <Flex align="center" css={{ gap: '$2', mb: '$3' }}>
+                    <Text css={{ fontSize: 20 }}>🚀</Text>
+                    <Text style="h6" css={{ color: '$gray12' }}>Get Started as a Creator</Text>
+                  </Flex>
+                  
+                  <Flex 
+                    css={{ 
+                      gap: '$4', 
+                      flexDirection: 'column',
+                      '@bp600': { flexDirection: 'row' },
+                    }}
+                  >
+                    {/* Step 1: Upload */}
+                    <Box css={{ flex: 1, textAlign: 'center' }}>
+                      <Box
+                        css={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: '50%',
+                          background: 'rgba(99, 102, 241, 0.2)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          mx: 'auto',
+                          mb: '$2',
+                        }}
+                      >
+                        <Text css={{ fontSize: 20 }}>📁</Text>
+                      </Box>
+                      <Text style="subtitle2" css={{ color: '$gray12', mb: '$1' }}>1. Upload</Text>
+                      <Text style="body3" css={{ color: '$gray10' }}>
+                        Select your artwork (PNG, JPG, GIF)
+                      </Text>
+                    </Box>
+
+                    {/* Arrow */}
+                    <Box css={{ display: 'none', '@bp600': { display: 'flex' }, alignItems: 'center' }}>
+                      <Text css={{ color: '$gray7', fontSize: 20 }}>→</Text>
+                    </Box>
+
+                    {/* Step 2: Mint */}
+                    <Box css={{ flex: 1, textAlign: 'center' }}>
+                      <Box
+                        css={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: '50%',
+                          background: 'rgba(139, 92, 246, 0.2)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          mx: 'auto',
+                          mb: '$2',
+                        }}
+                      >
+                        <Text css={{ fontSize: 20 }}>⛏️</Text>
+                      </Box>
+                      <Text style="subtitle2" css={{ color: '$gray12', mb: '$1' }}>2. Mint</Text>
+                      <Text style="body3" css={{ color: '$gray10' }}>
+                        Create your NFT on-chain
+                      </Text>
+                    </Box>
+
+                    {/* Arrow */}
+                    <Box css={{ display: 'none', '@bp600': { display: 'flex' }, alignItems: 'center' }}>
+                      <Text css={{ color: '$gray7', fontSize: 20 }}>→</Text>
+                    </Box>
+
+                    {/* Step 3: Promote */}
+                    <Box css={{ flex: 1, textAlign: 'center' }}>
+                      <Box
+                        css={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: '50%',
+                          background: 'rgba(251, 191, 36, 0.2)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          mx: 'auto',
+                          mb: '$2',
+                        }}
+                      >
+                        <Text css={{ fontSize: 20 }}>📢</Text>
+                      </Box>
+                      <Text style="subtitle2" css={{ color: '$gray12', mb: '$1' }}>3. Promote</Text>
+                      <Text style="body3" css={{ color: '$gray10' }}>
+                        Feature your NFT for visibility
+                      </Text>
+                    </Box>
+                  </Flex>
+
+                  <Flex justify="center" css={{ mt: '$4' }}>
+                    <Link href="/mint" passHref legacyBehavior>
+                      <Button as="a" data-testid="start-creating-btn">
+                        Start Creating →
+                      </Button>
+                    </Link>
+                  </Flex>
+                </Box>
+              )}
+
               {/* Stats Section */}
               <Box css={{ mb: '$5' }}>
                 <Text style="subtitle1" css={{ mb: '$3', color: '$gray11' }}>
