@@ -297,6 +297,20 @@ const HamburgerMenu = () => {
                   Portfolio
                 </Text>
               </Link>
+              <Link href="/creator-hub" legacyBehavior>
+                <Text
+                  style="subtitle1"
+                  css={{
+                    borderBottom: '1px solid $gray4',
+                    cursor: 'pointer',
+                    pb: '$4',
+                    pt: '24px',
+                    width: '100%',
+                  }}
+                >
+                  ✨ Creator Hub
+                </Text>
+              </Link>
               <Link href="/my-nfts" legacyBehavior>
                 <Text
                   style="subtitle1"
