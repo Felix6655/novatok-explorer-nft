@@ -23,9 +23,7 @@ export default function MintPage() {
   const [mintError, setMintError] = useState<string>("");
   const [txHash, setTxHash] = useState<string>("");
 
-  const EXPECTED_CHAIN_ID = Number(
-    process.env.NEXT_PUBLIC_CHAIN_ID || "11155111"
-  );
+  const EXPECTED_CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID || "11155111");
 
   const CONTRACT_ADDRESS =
     process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ||
@@ -180,14 +178,9 @@ export default function MintPage() {
         return;
       }
     } catch (e: any) {
-      // Make the error readable
       const msg =
-        e?.shortMessage ||
-        e?.reason ||
-        e?.message ||
-        "Mint failed (unknown error)";
+        e?.shortMessage || e?.reason || e?.message || "Mint failed (unknown error)";
 
-      // Helpful hint if ABI mismatch
       if (String(msg).toLowerCase().includes("is not a function")) {
         setMintError(
           msg +
@@ -219,8 +212,10 @@ export default function MintPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const wrongNetwork =
-    chainId !== null && chainId !== EXPECTED_CHAIN_ID && walletAddress;
+  // ✅ FIX: force boolean (prevents string|boolean type)
+  const wrongNetwork = Boolean(
+    walletAddress && chainId !== null && chainId !== EXPECTED_CHAIN_ID
+  );
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-zinc-50 dark:bg-black px-4">
@@ -287,9 +282,7 @@ export default function MintPage() {
               Switch to Sepolia
             </button>
           ) : (
-            <span className="text-xs text-zinc-500">
-              Chain: {chainId ?? "?"}
-            </span>
+            <span className="text-xs text-zinc-500">Chain: {chainId ?? "?"}</span>
           )}
         </div>
 
@@ -317,7 +310,9 @@ export default function MintPage() {
           </div>
         )}
 
-        {mintError && <div className="mt-3 text-red-500 text-sm">{mintError}</div>}
+        {mintError && (
+          <div className="mt-3 text-red-500 text-sm">{mintError}</div>
+        )}
 
         {/* Helpful config display (non-secret) */}
         <div className="mt-4 text-xs text-zinc-500 space-y-1">
