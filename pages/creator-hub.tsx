@@ -156,10 +156,14 @@ const NFTCard = ({ nft }: { nft: NFTItem }) => (
 
 const PromotionCard = ({ 
   option, 
-  onSelect 
+  onSelect,
+  isLoading,
+  disabled,
 }: { 
   option: PromotionOption; 
-  onSelect: (id: PromotionTier) => void 
+  onSelect: (id: PromotionTier) => void;
+  isLoading?: boolean;
+  disabled?: boolean;
 }) => (
   <Box
     css={{
@@ -168,8 +172,9 @@ const PromotionCard = ({
       borderRadius: 16,
       border: '1px solid rgba(255, 255, 255, 0.1)',
       transition: 'all 0.2s ease',
+      opacity: disabled ? 0.6 : 1,
       '&:hover': {
-        transform: 'translateY(-2px)',
+        transform: disabled ? 'none' : 'translateY(-2px)',
         borderColor: 'rgba(255, 255, 255, 0.2)',
       },
     }}
@@ -189,8 +194,9 @@ const PromotionCard = ({
       onClick={() => onSelect(option.id)}
       css={{ width: '100%' }}
       size="small"
+      disabled={isLoading || disabled}
     >
-      Select
+      {isLoading ? 'Processing...' : 'Feature Now'}
     </Button>
   </Box>
 )
