@@ -185,48 +185,9 @@ const Navbar = () => {
         align="center"
       >
         <Flex css={{ gap: '$5', mr: 12 }}>
-          <Box>
-            <HoverCard.Root openDelay={120}>
-              <HoverCard.Trigger>
-                <a target="_blank" href={`https://docs.reservoir.tools/docs`}>
-                  <NavItem>Developers</NavItem>
-                </a>
-              </HoverCard.Trigger>
-              <HoverCard.Content sideOffset={24} align="start">
-                <Card css={{ p: 24, width: 240 }}>
-                  <Flex css={{ gap: '$4' }} direction="column">
-                    <a target="_blank" href={`https://reservoir.tools`}>
-                      <NavItem>About Reservoir</NavItem>
-                    </a>
-                    <a
-                      target="_blank"
-                      href={`https://docs.reservoir.tools/docs`}
-                    >
-                      <NavItem>Docs</NavItem>
-                    </a>
-
-                    <a
-                      target="_blank"
-                      href={`https://docs.reservoir.tools/reference/overview`}
-                    >
-                      <NavItem>API Reference</NavItem>
-                    </a>
-
-                    <a
-                      target="_blank"
-                      href={`https://github.com/reservoirprotocol`}
-                    >
-                      <NavItem>Github</NavItem>
-                    </a>
-
-                    <a href={`https://testnets.reservoir.tools`}>
-                      <NavItem>Testnet Explorer</NavItem>
-                    </a>
-                  </Flex>
-                </Card>
-              </HoverCard.Content>
-            </HoverCard.Root>
-          </Box>
+          <Link href="/creator-hub">
+            <NavItem>Creator Hub</NavItem>
+          </Link>
           <Link href="/my-nfts">
             <NavItem>My NFTs</NavItem>
           </Link>
