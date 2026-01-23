@@ -45,7 +45,7 @@ The app is driven by these env vars:
 - Shows config errors if env vars missing
 - Network badge shows current chain status
 
-#### 2. Mint Page (`/mint`)
+#### 3. Mint Page (`/mint`)
 - **Status**: ✅ IMPLEMENTED (Enhanced)
 - Image file picker (PNG, JPG, GIF, WebP up to 10MB) with click-to-upload
 - Uploads via `POST /api/ipfs/upload` using multipart/form-data
