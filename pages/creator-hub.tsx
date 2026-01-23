@@ -414,6 +414,17 @@ const CreatorHubPage: NextPage = () => {
                     💳 Payment integration coming soon
                   </Text>
                 </Box>
+
+                {/* Email Capture for Promotion Notifications */}
+                <Box css={{ mt: '$4' }}>
+                  <EmailCapture
+                    walletAddress={address}
+                    source="creator_hub"
+                    title="Get Notified"
+                    description="Be the first to know about new promotion slots and featured opportunities."
+                    compact={false}
+                  />
+                </Box>
               </Box>
             </Box>
           </Flex>
