@@ -185,22 +185,21 @@ const Navbar = () => {
         align="center"
       >
         <Flex css={{ gap: '$5', mr: 12 }}>
-          <Link href="/creator-hub">
-            <NavItem>Creator Hub</NavItem>
+          <Link href="/">
+            <NavItem>Home</NavItem>
           </Link>
-          <Link href="/my-nfts">
-            <NavItem>My NFTs</NavItem>
+          <Link href="/ethereum">
+            <NavItem>Marketplace</NavItem>
+          </Link>
+          <Link href="/create-hub">
+            <NavItem>Generate</NavItem>
           </Link>
           <Link href="/mint">
             <NavItem>Mint</NavItem>
           </Link>
-          {isConnected && (
-            <Link href={`/portfolio/${address || ''}?chain=${routePrefix}`}>
-              <Box css={{ mr: '$2' }}>
-                <NavItem>Portfolio</NavItem>
-              </Box>
-            </Link>
-          )}
+          <Link href="/my-nfts">
+            <NavItem>My NFTs</NavItem>
+          </Link>
         </Flex>
 
         {isConnected ? (
