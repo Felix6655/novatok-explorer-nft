@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { featuredNFTs } from './webhook'
+import { getFeaturedStatus } from './checkout'
 
 export default async function handler(
   req: NextApiRequest,
@@ -15,28 +15,10 @@ export default async function handler(
     return res.status(400).json({ error: 'Missing nftId parameter' })
   }
 
-  const featured = featuredNFTs.get(nftId)
-
-  if (!featured) {
-    return res.status(200).json({
-      ok: true,
-      is_featured: false,
-      featured_until: null,
-    })
-  }
-
-  // Check if still within featured period
-  const now = new Date()
-  const isFeatured = featured.featuredUntil > now
-
-  if (!isFeatured) {
-    // Clean up expired entry
-    featuredNFTs.delete(nftId)
-  }
+  const status = getFeaturedStatus(nftId)
 
   return res.status(200).json({
     ok: true,
-    is_featured: isFeatured,
-    featured_until: isFeatured ? featured.featuredUntil.toISOString() : null,
+    ...status,
   })
 }
