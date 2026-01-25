@@ -130,7 +130,7 @@ const HamburgerMenu = () => {
                 </Flex>
               </Flex>
             </Link>
-            <Link href={`/${routePrefix}/collection-rankings`} legacyBehavior>
+            <Link href="/" legacyBehavior>
               <Text
                 style="subtitle1"
                 css={{
@@ -140,24 +140,11 @@ const HamburgerMenu = () => {
                   pt: '24px',
                 }}
               >
-                Explore
-              </Text>
-            </Link>
-            <Link href="/ethereum/collections/trending" legacyBehavior>
-              <Text
-                style="subtitle1"
-                css={{
-                  borderBottom: '1px solid $gray4',
-                  cursor: 'pointer',
-                  pb: '$4',
-                  pt: '24px',
-                }}
-              >
-                Trending Collections
+                Home
               </Text>
             </Link>
 
-            <Link href="/ethereum/mints/trending" legacyBehavior>
+            <Link href="/ethereum" legacyBehavior>
               <Text
                 style="subtitle1"
                 css={{
@@ -167,11 +154,11 @@ const HamburgerMenu = () => {
                   pt: '24px',
                 }}
               >
-                Trending Mints
+                Marketplace
               </Text>
             </Link>
 
-            <Link href="/creator-hub" legacyBehavior>
+            <Link href="/create-hub" legacyBehavior>
               <Text
                 style="subtitle1"
                 css={{
@@ -181,7 +168,21 @@ const HamburgerMenu = () => {
                   pt: '24px',
                 }}
               >
-                ✨ Creator Hub
+                Generate
+              </Text>
+            </Link>
+
+            <Link href="/mint" legacyBehavior>
+              <Text
+                style="subtitle1"
+                css={{
+                  borderBottom: '1px solid $gray4',
+                  cursor: 'pointer',
+                  pb: '$4',
+                  pt: '24px',
+                }}
+              >
+                Mint
               </Text>
             </Link>
 
@@ -196,20 +197,6 @@ const HamburgerMenu = () => {
                 }}
               >
                 My NFTs
-              </Text>
-            </Link>
-
-            <Link href="/mint" legacyBehavior>
-              <Text
-                style="subtitle1"
-                css={{
-                  borderBottom: '1px solid $gray4',
-                  cursor: 'pointer',
-                  pb: '$4',
-                  pt: '24px',
-                }}
-              >
-                Mint NFT
               </Text>
             </Link>
 
