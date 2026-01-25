@@ -1,134 +1,117 @@
 # NovatoK NFT Marketplace - Product Requirements Document
 
 ## Original Problem Statement
-The user had a broken Next.js + TypeScript NFT marketplace repository (`novatok-nft-marketplace`) that needed fixes and new features:
-1. Make `yarn build` pass with zero TypeScript errors
-2. Fix Radix Dialog usage to use compound components
-3. Keep wagmi/RainbowKit wallet logic intact
-4. Implement "My NFTs" page showing real on-chain NFTs from Sepolia
-5. Enable basic minting flow with image upload (no external IPFS service)
+Creator-first NFT marketplace that helps new users easily create NFTs and optionally monetize via a $9 Stripe "Feature NFT" boost.
 
 ## Tech Stack
 - **Frontend**: Next.js (Pages Router), React 18, TypeScript
-- **Styling**: Stitches, Radix UI
+- **Styling**: Stitches, Radix UI, Cosmic/Glassmorphism theme
 - **Web3**: wagmi 2.12, viem 2.17, RainbowKit 2.1.7
+- **Payments**: Stripe Checkout ($9 Feature NFT)
 - **Chain**: Sepolia Testnet (configurable via env vars)
 
 ## Core Requirements
 
 ### Environment Variables
-The app is driven by these env vars:
-- `NEXT_PUBLIC_CHAIN_ID` - Expected chain (default: 11155111 for Sepolia)
-- `NEXT_PUBLIC_RPC_URL` - RPC endpoint for blockchain calls
-- `NEXT_PUBLIC_CONTRACT_ADDRESS` - Deployed ERC721 contract
-- `NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID` - Optional, works without (MetaMask fallback)
-
-### Email Capture & Follow-up System (NEW)
-Simple creator email capture ready for future automation:
-- **API Endpoint**: `POST /api/creator/email` - stores email with wallet association
-- **Capture Points**:
-  - Creator Hub: "Get Notified" form in promotions sidebar
-  - Mint Success: Inline capture after successful mint
-- **Data Stored**: email, walletAddress, source, optInMarketing, createdAt
-- **Storage**: JSON file (MVP) - replace with MongoDB in production
-- **Future Hooks**: Welcome emails, promotion reminders, sales notifications
-
-### MVP Features Implemented
-
-#### 1. Creator Hub (`/creator-hub`) - NEW
-- **Status**: ✅ IMPLEMENTED
-- Creator dashboard with stats (NFTs minted, featured count, views, earnings)
-- **Primary CTA**: "🎨 Create New NFT" button → routes to /mint
-- **Onboarding Section** (for first-time creators): Upload → Mint → Promote steps
-- "My NFTs" grid with status tags (Draft, Active, Featured)
-- Promotions panel with three tiers:
-  - Feature NFT (0.05 ETH / 7 days)
-  - Feature Creator (0.1 ETH / 14 days)
-  - Visibility Boost (0.02 ETH / 3 days)
-- Email capture for promotion notifications
-- Wallet connection prompt when not connected
-- Quick action links to Mint, My NFTs, Explore
-
-#### 2. My NFTs Page (`/my-nfts`)
-- **Status**: ✅ IMPLEMENTED
-- Displays connected wallet's NFTs from the configured contract
-- "Scan Blockchain" button triggers on-chain scan using viem/wagmi
-- Uses `balanceOf`, `tokenOfOwnerByIndex`, `tokenURI` contract calls
-- Handles IPFS and base64 data URLs for metadata
-- Shows config errors if env vars missing
-- Network badge shows current chain status
-
-#### 3. Mint Page (`/mint`)
-- **Status**: ✅ IMPLEMENTED (Enhanced)
-- Image file picker (PNG, JPG, GIF, WebP up to 10MB) with click-to-upload
-- Uploads via `POST /api/ipfs/upload` using multipart/form-data
-- API returns base64 data URL (works on Vercel Node runtime)
-- **NEW: Mint Readiness Panel** - Auto-analyzes file type, size, resolution, aspect ratio, metadata
-- **NEW: Marketplace Preview Simulator** - Toggle between Marketplace/Mobile/Dark views
-- **NEW: NovaTok Suggestions** - Collapsible panel with context-aware tips
-- **NEW: Attributes Editor** - Add up to 5 trait/value pairs
-- **NEW: Post-Mint Success UX** - Shows "Go to Creator Hub", "View My NFTs", "Mint Another" CTAs
-- **NEW: Email capture** after successful mint
-- Wrong network detection with "Switch Network" button
-- Upload progress indicator and clear error messages
-- Transaction hash displayed on success
-- All warnings are non-blocking (mint always possible)
-
-### Navigation
-- Desktop: "Creator Hub", "My NFTs", and "Mint" links in navbar
-- Mobile: Links added to hamburger menu
-
-## Architecture
-
 ```
-/app/
-├── pages/
-│   ├── my-nfts.tsx       # ✅ NEW - On-chain NFT scanner
-│   ├── mint.tsx          # ✅ UPDATED - Image upload + minting
-│   ├── portfolio/        # Original Reservoir-based portfolio
-│   └── _app.tsx          # App entry with wagmi/RainbowKit
-├── components/
-│   ├── navbar/
-│   │   ├── index.tsx     # ✅ UPDATED - Added nav links
-│   │   └── HamburgerMenu.tsx # ✅ UPDATED - Mobile nav
-│   └── common/
-│       ├── NetworkBadge.tsx
-│       └── WrongNetworkBanner.tsx
-├── lib/
-│   └── config.js         # Chain/contract configuration
-└── .env.local            # Local environment config
+# Blockchain
+NEXT_PUBLIC_CHAIN_ID=11155111
+NEXT_PUBLIC_RPC_URL=https://sepolia.drpc.org
+NEXT_PUBLIC_CONTRACT_ADDRESS=<deployed_contract>
+NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=<optional>
+
+# Stripe ($9 Feature NFT)
+STRIPE_SECRET_KEY=sk_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_FEATURE_NFT_PRICE_ID=price_...
 ```
 
-## What's Been Implemented (Dec 2025)
+### Navigation (Exactly 5 Items)
+```
+Home | Marketplace | Generate | Mint | My NFTs
+```
 
-1. **Build fixes** - All TypeScript errors resolved, yarn build passes
-2. **My NFTs page** - Complete with blockchain scanning
-3. **Mint page** - Complete with image upload and base64 tokenURI generation
-4. **Navigation** - Links added to desktop and mobile nav
+---
 
-## Prioritized Backlog
+## Implemented Features
 
-### P0 (Critical) - Done
-- [x] My NFTs page with blockchain scan
-- [x] Mint page with image upload
+### 1. Create Hub (`/create-hub`)
+- **Status**: ✅ IMPLEMENTED
+- Welcome header: "Welcome to the Create Hub"
+- Tabs: Image (active), Video, Character, Audio, Assets
+- Tool cards grid (8 tools): Generate Image, Edit Image, Upscale, Remove Background, Erase Object, Text to Video, Motion Video, Image to Video
+- Recent Uploads sidebar
+- Assets Library section (4 placeholder cards)
+- Feature NFT $9 CTA card
 
-### P1 (High) - Next
-- [ ] Set `NEXT_PUBLIC_CONTRACT_ADDRESS` in production env
-- [ ] Set `NEXT_PUBLIC_RPC_URL` in production env
-- [ ] Deploy to Vercel via GitHub push
+### 2. My NFTs (`/my-nfts`)
+- **Status**: ✅ IMPLEMENTED
+- **Scan Blockchain dropdown**:
+  - Manual Scan / Auto Scan toggle
+  - Rescan Now button
+- **Create NFT dropdown**:
+  - Generate NFT → /create-hub
+  - Mint NFT → /mint
+  - Feature NFT – $9 → Opens Stripe checkout
+- NFT Grid with:
+  - Artwork, name, token ID
+  - "Boost visibility – $9" button (if not featured)
+  - "Featured on marketplace (7 days)" badge (if featured)
+- Success banner after mint
 
-### P2 (Medium)
-- [ ] ERC-2981 royalties display on NFT cards
-- [ ] Transaction confirmation polling after mint
-- [ ] Error retry logic for RPC failures
+### 3. Stripe Feature NFT ($9)
+- **Status**: ✅ IMPLEMENTED
+- `POST /api/stripe/checkout` - Creates Stripe session
+- `POST /api/stripe/webhook` - Handles checkout.session.completed
+- `GET /api/stripe/featured-status` - Returns featured status
+- Persistent storage in `.data/featured-nfts.json`
+- Featured duration: 7 days
 
-### P3 (Low/Future)
-- [ ] IPFS upload option via Pinata
-- [ ] Batch minting support
-- [ ] NFT transfer functionality
+### 4. Mint Page (`/mint`)
+- **Status**: ✅ IMPLEMENTED (unchanged)
+- Image upload with readiness checks
+- Marketplace preview modes
+- Attributes editor
+- Post-mint success with CTAs
 
-## Testing Notes
-- Build passes: `yarn build` ✅
-- Manual testing needed with MetaMask on Sepolia
-- Contract must support `mint(string tokenURI)` function
-- Contract should implement ERC721Enumerable for `tokenOfOwnerByIndex`
+### 5. Email Capture
+- **Status**: ✅ IMPLEMENTED
+- `POST /api/creator/email`
+- Capture points in Creator Hub and post-mint
+
+---
+
+## Branch: `upgrade/create-hub-stripe-9`
+
+### Files Added
+- `/pages/create-hub.tsx`
+- `/UPGRADE-README.md`
+
+### Files Modified
+- `/pages/my-nfts.tsx` - Complete rewrite
+- `/pages/api/stripe/checkout.ts` - Persistent storage
+- `/pages/api/stripe/webhook.ts` - Persistent storage
+- `/pages/api/stripe/featured-status.ts` - Reads storage
+- `/components/navbar/index.tsx` - Updated nav
+- `/components/navbar/HamburgerMenu.tsx` - Updated mobile nav
+
+---
+
+## What This Upgrade Does NOT Include
+- Persistent database (uses JSON file)
+- Real AI generation services
+- Listing/auction features
+- Admin dashboard
+- Multiple promotion tiers (only $9 Feature NFT)
+
+---
+
+## Deployment Checklist
+- [x] `yarn build` passes
+- [x] Create Hub page functional
+- [x] My NFTs dropdowns work
+- [x] Stripe checkout creates session
+- [x] Webhook handles completion
+- [x] Featured status persists
+- [ ] Vercel Preview deployment tested
+- [ ] Stripe webhook URL configured for preview domain
