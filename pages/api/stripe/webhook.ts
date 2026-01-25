@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import Stripe from 'stripe'
 import { buffer } from 'micro'
+import { addFeaturedNFT } from './checkout'
 
 // Disable body parsing for raw webhook signature verification
 export const config = {
@@ -17,10 +18,6 @@ const getStripe = () => {
   }
   return new Stripe(secretKey)
 }
-
-// In-memory store for featured NFTs (replace with DB in production)
-// This is exported so other routes can read it
-export const featuredNFTs: Map<string, { walletAddress: string; featuredUntil: Date }> = new Map()
 
 export default async function handler(
   req: NextApiRequest,
@@ -57,32 +54,16 @@ export default async function handler(
   // Handle the event
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session
-    
-    // Extract metadata
+
     const { nftId, walletAddress, promotionType } = session.metadata || {}
 
     if (nftId && walletAddress && promotionType === 'feature_nft') {
-      // Calculate featured_until (7 days from now)
-      const featuredUntil = new Date()
-      featuredUntil.setDate(featuredUntil.getDate() + 7)
-
-      // Store featured status
-      featuredNFTs.set(nftId, {
-        walletAddress,
-        featuredUntil,
-      })
+      // Persist featured status to file storage
+      const featuredUntil = addFeaturedNFT(nftId, walletAddress)
 
       console.log(`[Feature NFT] Activated: nftId=${nftId}, wallet=${walletAddress}, until=${featuredUntil.toISOString()}`)
-      
-      // TODO: In production, persist to database:
-      // await db.collection('featured_nfts').updateOne(
-      //   { nftId },
-      //   { $set: { is_featured: true, featured_until: featuredUntil, walletAddress } },
-      //   { upsert: true }
-      // )
     }
   }
 
-  // Return 200 to acknowledge receipt
   return res.status(200).json({ received: true })
 }
