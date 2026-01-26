@@ -267,10 +267,10 @@ const HamburgerMenu = () => {
                     width: '100%',
                   }}
                 >
-                  Explore
+                  Home
                 </Text>
               </Link>
-              <Link href={`/portfolio/${address || ''}`} legacyBehavior>
+              <Link href="/ethereum" legacyBehavior>
                 <Text
                   style="subtitle1"
                   css={{
@@ -281,10 +281,10 @@ const HamburgerMenu = () => {
                     width: '100%',
                   }}
                 >
-                  Portfolio
+                  Marketplace
                 </Text>
               </Link>
-              <Link href="/creator-hub" legacyBehavior>
+              <Link href="/create-hub" legacyBehavior>
                 <Text
                   style="subtitle1"
                   css={{
@@ -295,7 +295,21 @@ const HamburgerMenu = () => {
                     width: '100%',
                   }}
                 >
-                  ✨ Creator Hub
+                  Generate
+                </Text>
+              </Link>
+              <Link href="/mint" legacyBehavior>
+                <Text
+                  style="subtitle1"
+                  css={{
+                    borderBottom: '1px solid $gray4',
+                    cursor: 'pointer',
+                    pb: '$4',
+                    pt: '24px',
+                    width: '100%',
+                  }}
+                >
+                  Mint
                 </Text>
               </Link>
               <Link href="/my-nfts" legacyBehavior>
@@ -312,12 +326,6 @@ const HamburgerMenu = () => {
                   My NFTs
                 </Text>
               </Link>
-              <Link href="/mint" legacyBehavior>
-                <Text
-                  style="subtitle1"
-                  css={{
-                    borderBottom: '1px solid $gray4',
-                    cursor: 'pointer',
                     pb: '$4',
                     pt: '24px',
                     width: '100%',
