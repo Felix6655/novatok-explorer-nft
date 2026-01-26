@@ -598,7 +598,6 @@ const MyNFTsPage: NextPage = () => {
               <Box css={{ height: 1, background: 'rgba(255,255,255,0.1)', my: '$2' }} />
               <DropdownItem
                 icon="⭐"
-                price="$9"
                 onClick={() => {
                   setCreateDropdownOpen(false)
                   if (nfts.length > 0) {
