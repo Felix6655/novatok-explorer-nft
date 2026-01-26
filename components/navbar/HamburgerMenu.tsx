@@ -326,27 +326,6 @@ const HamburgerMenu = () => {
                   My NFTs
                 </Text>
               </Link>
-                    pb: '$4',
-                    pt: '24px',
-                    width: '100%',
-                  }}
-                >
-                  Mint NFT
-                </Text>
-              </Link>
-              <Anchor
-                href="https://docs.reservoir.tools/docs"
-                target="_blank"
-                css={{
-                  borderBottom: '1px solid $gray4',
-                  cursor: 'pointer',
-                  pb: '$4',
-                  pt: '24px',
-                  width: '100%',
-                }}
-              >
-                <Text style="subtitle1">Docs</Text>
-              </Anchor>
             </Flex>
             <Box>
               <ConnectWalletButton />
