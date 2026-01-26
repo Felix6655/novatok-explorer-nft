@@ -305,7 +305,7 @@ const NFTCard = ({
             }}
             data-testid={`boost-btn-${nft.tokenId}`}
           >
-            Boost visibility – $9
+            Boost visibility
           </Button>
         )}
       </Box>
