@@ -20,12 +20,9 @@ import {
 } from '@radix-ui/colors'
 import { createStitches } from '@stitches/react'
 import type * as Stitches from '@stitches/react'
-import { reset } from 'utils/css/reset'
-import { Inter } from "next/font/google"
 
-const inter = Inter({
-  subsets: ['latin'],
-})
+// Minimal CSS reset
+const reset = {}
 
 // CONFIGURABLE: Here you can update all your theming (outside of ReservoirKit which can be configured in the app.tsx)
 // The theme colors are all already hooked up to stitches scales, so you just need to swap them.
@@ -124,7 +121,7 @@ export const { createTheme, keyframes, styled, globalCss, getCssText } =
       fontSizes: {},
       fontWeights: {},
       fonts: {
-        body: inter.style.fontFamily,
+        body: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         button: '$body',
       },
       lineHeights: {},
